@@ -1,0 +1,6 @@
+{
+  "type": "setting",
+  "settings": {
+    "eslint.enable": false
+  }
+}

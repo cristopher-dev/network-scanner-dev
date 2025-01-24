@@ -1,0 +1,11 @@
+{
+  "name": "react-electron-template",
+  "version": "1.0.0",
+  "description": "The Complete Electron, React Template for Robust Multi-Platform Apps in Production",
+  "license": "MIT",
+  "main": "./dist/main/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {}
+}

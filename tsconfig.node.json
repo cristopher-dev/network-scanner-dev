@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@Assets/*": ["./assets/*"],
+      "@Components/*": ["./src/renderer/Components/*"]
+    }
+  },
+  "include": ["assets", "configs", "src"],
+  "exclude": ["app/dist", "release/build"]
+}
