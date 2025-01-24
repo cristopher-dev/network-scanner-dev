@@ -155,9 +155,9 @@ const Home: React.FC = () => {
         </Typography>
         <List>
           <ListItem>
-            <ListItemText
-              primary="Timeout (ms)"
-              secondary={
+            <Box sx={{ width: '100%' }}>
+              <Typography variant="body1">Timeout (ms)</Typography>
+              <Box sx={{ mt: 1 }}>
                 <Slider
                   value={config.timeout}
                   onChange={(_, value) => setConfig({ ...config, timeout: value as number })}
@@ -165,13 +165,13 @@ const Home: React.FC = () => {
                   max={5000}
                   step={100}
                 />
-              }
-            />
+              </Box>
+            </Box>
           </ListItem>
           <ListItem>
-            <ListItemText
-              primary="Tamaño de Lote"
-              secondary={
+            <Box sx={{ width: '100%' }}>
+              <Typography variant="body1">Tamaño de Lote</Typography>
+              <Box sx={{ mt: 1 }}>
                 <Slider
                   value={config.batchSize}
                   onChange={(_, value) => setConfig({ ...config, batchSize: value as number })}
@@ -179,31 +179,29 @@ const Home: React.FC = () => {
                   max={50}
                   step={5}
                 />
-              }
-            />
+              </Box>
+            </Box>
           </ListItem>
           <ListItem>
-            <ListItemText
-              primary="Rango IP"
-              secondary={
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <TextField
-                    size="small"
-                    label="Inicio"
-                    type="number"
-                    value={config.startRange}
-                    onChange={(e) => setConfig({ ...config, startRange: Number(e.target.value) })}
-                  />
-                  <TextField
-                    size="small"
-                    label="Fin"
-                    type="number"
-                    value={config.endRange}
-                    onChange={(e) => setConfig({ ...config, endRange: Number(e.target.value) })}
-                  />
-                </Box>
-              }
-            />
+            <Box>
+              <Typography variant="body1">Rango IP</Typography>
+              <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                <TextField
+                  size="small"
+                  label="Inicio"
+                  type="number"
+                  value={config.startRange}
+                  onChange={(e) => setConfig({ ...config, startRange: Number(e.target.value) })}
+                />
+                <TextField
+                  size="small"
+                  label="Fin"
+                  type="number"
+                  value={config.endRange}
+                  onChange={(e) => setConfig({ ...config, endRange: Number(e.target.value) })}
+                />
+              </Box>
+            </Box>
           </ListItem>
         </List>
       </Box>
