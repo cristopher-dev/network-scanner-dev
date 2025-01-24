@@ -11,6 +11,7 @@ import {
   SpeedDial,
   SpeedDialIcon,
   SpeedDialAction,
+  LinearProgress,
 } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SecurityIcon from '@mui/icons-material/Security';
@@ -31,9 +32,18 @@ interface ScanConfig {
   endRange: number;
 }
 
+interface ScanResult {
+  ip: string;
+  status: 'up' | 'down';
+  ports?: {
+    port: number;
+    status: 'open' | 'closed';
+  }[];
+}
+
 const Home: React.FC = () => {
   const [darkMode, setDarkMode] = useState(true);
-  const [scanResults, setScanResults] = useState<any[]>([]);
+  const [scanResults, setScanResults] = useState<ScanResult[]>([]);
   const [scanning, setScanning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
@@ -91,7 +101,7 @@ const Home: React.FC = () => {
     },
   });
 
-  const updateStats = useCallback((results: any[]) => {
+  const updateStats = useCallback((results: ScanResult[]) => {
     const active = results.filter((r) => r.status === 'up').length;
     setStats({
       total: results.length,
@@ -102,27 +112,53 @@ const Home: React.FC = () => {
 
   const handleScan = async () => {
     try {
+      // Validar configuración antes de escanear
+      if (!config.baseIp) {
+        setError('Por favor ingrese una IP base válida');
+        return;
+      }
+
       setScanning(true);
       setProgress(0);
       setScanResults([]);
 
-      const results = (await window.ipc.invoke(
-        'scan-network',
-        config.baseIp,
-        config.startRange,
-        config.endRange,
-        config.ports,
-        config.timeout,
-        config.batchSize,
-      )) as any[];
+      const scanConfig = {
+        baseIp: config.baseIp,
+        startRange: config.startRange,
+        endRange: config.endRange,
+        ports: config.ports,
+        timeout: config.timeout,
+        batchSize: config.batchSize,
+      };
 
-      setScanResults(results);
-      updateStats(results);
+      console.log('Iniciando escaneo con configuración:', scanConfig);
+
+      // Manejar el progreso del escaneo
+      const removeListener = window.ipc.on('scan-progress', (progress: number) => {
+        setProgress(Math.min(progress, 100));
+      });
+
+      try {
+        // Invocar el escaneo a través de IPC
+        const results = await window.ipc.invoke('scan-network', scanConfig);
+
+        if (Array.isArray(results)) {
+          setScanResults(results);
+          updateStats(results);
+          setError(null);
+        } else {
+          throw new Error('Formato de resultados inválido');
+        }
+      } finally {
+        removeListener(); // Limpiar el listener
+      }
     } catch (error) {
-      setError('Error al escanear la red');
-      console.error('Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      setError(`Error al escanear la red: ${errorMessage}`);
+      console.error('Error durante el escaneo:', error);
     } finally {
       setScanning(false);
+      setProgress(100);
     }
   };
 
@@ -139,7 +175,18 @@ const Home: React.FC = () => {
             handleScan={handleScan}
             scanning={scanning}
           />
-          {scanning && <ScanningProgress progress={progress} />}
+          {scanning && (
+            <Box sx={{ width: '100%', mb: 2 }}>
+              <LinearProgress
+                variant="determinate"
+                value={progress}
+                sx={{
+                  height: 10,
+                  borderRadius: 5,
+                }}
+              />
+            </Box>
+          )}
           <FilterMenu />
           <StatsDashboard stats={stats} />
           <ResultsGrid scanResults={scanResults} />

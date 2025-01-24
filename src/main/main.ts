@@ -82,18 +82,31 @@ const setupIpc = (): void => {
   ipcMain.handle('get', (_event, key) => store.get(key));
 
   // Manejar el escaneo de red
-  ipcMain.handle(
-    'scan-network',
-    async (_event, baseIp: string, start: number, end: number, ports?: number[]) => {
-      try {
-        return await scanner.scanNetwork(baseIp, start, end, ports);
-      } catch (error) {
-        console.error('Error durante el escaneo:', error);
-        throw error;
-      }
-    },
-  );
+  ipcMain.handle('scan-network', async (_event, scanConfig) => {
+    try {
+      const scanner = new AdvancedIpScanner();
+      const results = await scanner.scanNetwork(
+        scanConfig.baseIp,
+        scanConfig.startRange,
+        scanConfig.endRange,
+        scanConfig.ports,
+      );
+      return results;
+    } catch (error) {
+      console.error('Error en el escaneo:', error);
+      throw error;
+    }
+  });
 };
+
+interface ScanResult {
+  ip: string;
+  status: 'up' | 'down';
+  ports?: {
+    port: number;
+    status: 'open' | 'closed';
+  }[];
+}
 
 const startApp = async (): Promise<void> => {
   await app.whenReady();

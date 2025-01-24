@@ -52,7 +52,13 @@ const Header = ({
         }}
         className="search-field"
       />
-      <IconButton onClick={handleScan} disabled={scanning} color="primary" className="scan-button">
+      <IconButton
+        onClick={handleScan}
+        disabled={scanning}
+        color="primary"
+        className="scan-button"
+        title="Iniciar escaneo"
+      >
         <RefreshIcon />
       </IconButton>
     </Box>

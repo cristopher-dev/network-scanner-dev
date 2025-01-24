@@ -156,6 +156,24 @@ export class AdvancedIpScanner extends EventEmitter {
     return results;
   }
 
+  async scan(ip: string, ports: number[]): Promise<IScanResult> {
+    const pingResult = await ping.promise.probe(ip);
+
+    const result: IScanResult = {
+      ip,
+      status: pingResult.alive ? 'up' : 'down',
+      latency: typeof pingResult.time === 'number' ? pingResult.time : undefined,
+      ports: [],
+      hostname: pingResult.host,
+    };
+
+    if (pingResult.alive) {
+      result.ports = await this.scanPorts(ip, ports);
+    }
+
+    return result;
+  }
+
   private async scanHost(ip: string, ports: number[]): Promise<IScanResult | null> {
     try {
       const pingResult = await this.networkScanner.pingHost(ip, this.scanTimeout);

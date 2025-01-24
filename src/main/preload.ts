@@ -11,6 +11,7 @@ interface IpcApi {
   set: (key: string, value: unknown) => void;
   get: (key: string) => Promise<unknown>;
   invoke: (channel: ValidChannel, ...args: unknown[]) => Promise<unknown>;
+  on: (channel: string, callback: (...args: any[]) => void) => () => void;
 }
 
 // API de comunicación con el proceso principal
@@ -36,6 +37,11 @@ const ipcApi: IpcApi = {
       return ipcRenderer.invoke(channel, ...args);
     }
     return Promise.reject(new Error(`Canal no permitido: ${channel}`));
+  },
+
+  on: (channel, callback) => {
+    ipcRenderer.on(channel, (_, ...args) => callback(...args));
+    return () => ipcRenderer.removeListener(channel, callback);
   },
 };
 
