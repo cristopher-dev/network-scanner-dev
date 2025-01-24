@@ -4,18 +4,23 @@ import { isDebug, getAssetsPath, getHtmlPath, getPreloadPath, installExtensions 
 import { createMenu } from './menu';
 import './updater';
 import AdvancedIpScanner from './advancedIpScanner';
+import Store from 'electron-store';
 
 // Modificación del manejo de electron-store
-let store: any;
-
-const initStore = async () => {
-  try {
-    const Store = await import('electron-store');
-    store = new Store.default();
-  } catch (error) {
-    console.error('Error al inicializar electron-store:', error);
-  }
-};
+const store = new Store({
+  name: 'network-data',
+  defaults: {
+    scanResults: [],
+    scanConfig: {
+      timeout: 2000,
+      batchSize: 10,
+      ports: [20, 21, 22, 23, 25, 53, 80, 443, 445, 3389],
+      baseIp: '192.168.10',
+      startRange: 1,
+      endRange: 254,
+    },
+  },
+});
 
 // Configuración básica de la ventana
 const windowConfig = {
@@ -97,6 +102,29 @@ const setupIpc = (): void => {
       throw error;
     }
   });
+
+  ipcMain.handle('store-save', async (_event, data) => {
+    try {
+      store.set('scanResults', data.results);
+      store.set('scanConfig', data.config);
+      return true;
+    } catch (error) {
+      console.error('Error guardando datos:', error);
+      return false;
+    }
+  });
+
+  ipcMain.handle('store-load', async () => {
+    try {
+      return {
+        results: store.get('scanResults'),
+        config: store.get('scanConfig'),
+      };
+    } catch (error) {
+      console.error('Error cargando datos:', error);
+      return null;
+    }
+  });
 };
 
 interface ScanResult {
@@ -110,7 +138,6 @@ interface ScanResult {
 
 const startApp = async (): Promise<void> => {
   await app.whenReady();
-  await initStore(); // Inicializar store
   Menu.setApplicationMenu(createMenu());
   autoUpdater.checkForUpdatesAndNotify();
   setupIpc();

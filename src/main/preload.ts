@@ -65,6 +65,11 @@ contextBridge.exposeInMainWorld('api', {
   },
 });
 
+contextBridge.exposeInMainWorld('store', {
+  saveNetworkData: (data: any) => ipcRenderer.invoke('store-save', data),
+  loadNetworkData: () => ipcRenderer.invoke('store-load'),
+});
+
 // Tipos globales
 declare global {
   interface Window {

@@ -13,6 +13,13 @@ declare global {
       set(key: string, value: unknown): void;
       get(key: string): unknown;
     };
+    store: {
+      saveNetworkData: (data: any) => Promise<boolean>;
+      loadNetworkData: () => Promise<{
+        results: any[];
+        config: any;
+      } | null>;
+    };
   }
 }
 
