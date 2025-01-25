@@ -1,16 +1,31 @@
 import React from 'react';
-import { Box, Typography, Chip } from '@mui/material';
+import { Box, Stack, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 
-const FilterMenu = () => (
+interface FilterMenuProps {
+  filters?: {
+    status: string;
+    orderBy: string;
+  };
+  onFilterChange?: (event: SelectChangeEvent) => void;
+}
+
+const FilterMenu = ({
+  filters = { status: 'all', orderBy: 'ip' },
+  onFilterChange = () => {},
+}: FilterMenuProps) => (
   <Box sx={{ mb: 3 }}>
-    <Typography variant="subtitle2" gutterBottom>
-      Filtrar por:
-    </Typography>
-    <Box sx={{ display: 'flex', gap: 1 }}>
-      <Chip label="Todos" onClick={() => {}} color="primary" variant="outlined" />
-      <Chip label="Activos" onClick={() => {}} color="success" variant="outlined" />
-      <Chip label="Inactivos" onClick={() => {}} color="error" variant="outlined" />
-    </Box>
+    <Stack direction="row" spacing={2}>
+      <Select value={filters.status} onChange={onFilterChange} name="status">
+        <MenuItem value="all">Todos los dispositivos</MenuItem>
+        <MenuItem value="active">Activos</MenuItem>
+        <MenuItem value="inactive">Inactivos</MenuItem>
+      </Select>
+      <Select value={filters.orderBy} onChange={onFilterChange} name="orderBy">
+        <MenuItem value="ip">Ordenar por IP</MenuItem>
+        <MenuItem value="status">Ordenar por Estado</MenuItem>
+        <MenuItem value="ports">Ordenar por Puertos</MenuItem>
+      </Select>
+    </Stack>
   </Box>
 );
 

@@ -12,6 +12,7 @@ import {
   SpeedDialIcon,
   SpeedDialAction,
   LinearProgress,
+  SelectChangeEvent,
 } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SecurityIcon from '@mui/icons-material/Security';
@@ -58,6 +59,17 @@ const Home: React.FC = () => {
     startRange: 1,
     endRange: 254,
   });
+  const [filters, setFilters] = useState({
+    status: 'all',
+    orderBy: 'ip',
+  });
+
+  const handleFilterChange = (event: SelectChangeEvent) => {
+    setFilters((prev) => ({
+      ...prev,
+      [event.target.name]: event.target.value,
+    }));
+  };
 
   const theme = createTheme({
     palette: {
@@ -187,7 +199,7 @@ const Home: React.FC = () => {
               />
             </Box>
           )}
-          <FilterMenu />
+          <FilterMenu filters={filters} onFilterChange={handleFilterChange} />
           <StatsDashboard stats={stats} />
           <ResultsGrid scanResults={scanResults} />
         </Paper>

@@ -45,6 +45,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^6.28.2",
+    "recharts": "^2.15.0",
     "sass": "^1.83.4",
     "terser-webpack-plugin": "^5.3.11",
     "tsconfig-paths-webpack-plugin": "^4.2.0",
