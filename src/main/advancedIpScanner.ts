@@ -3,10 +3,6 @@ import ping from 'ping';
 import dns from 'dns';
 import { promisify } from 'util';
 import { EventEmitter } from 'events';
-import { NetworkScanner } from './networkScanner';
-import { PortScanner } from './portScanner';
-import { HostResolver } from './hostResolver';
-import { ServiceDetector } from './serviceDetector';
 
 interface IScanResult {
   ip: string;
@@ -62,10 +58,9 @@ export class AdvancedIpScanner extends EventEmitter {
   private startTime: number = 0;
   private scannedIps: number = 0;
 
-  private networkScanner = new NetworkScanner();
-  private portScanner = new PortScanner();
-  private hostResolver = new HostResolver();
-  private serviceDetector = new ServiceDetector();
+  constructor() {
+    super();
+  }
 
   private getCacheKey(baseIp: string, startRange: number, endRange: number): string {
     return `${baseIp}-${startRange}-${endRange}`;
@@ -189,7 +184,9 @@ export class AdvancedIpScanner extends EventEmitter {
 
   private async scanHost(ip: string, ports: number[]): Promise<IScanResult | null> {
     try {
-      const pingResult = await this.networkScanner.pingHost(ip, this.scanTimeout);
+      const pingResult = await ping.promise.probe(ip, {
+        timeout: this.scanTimeout / 1000,
+      });
 
       if (!pingResult.alive) return null;
 
@@ -200,18 +197,18 @@ export class AdvancedIpScanner extends EventEmitter {
       };
 
       const [hostname, openPorts, os, mac] = await Promise.all([
-        this.hostResolver.resolveHostname(ip),
-        this.portScanner.scanPorts(ip, ports, this.scanTimeout),
-        this.networkScanner.detectOS(ip, this.scanTimeout),
-        this.networkScanner.getMacAddress(ip),
+        this.resolveHostname(ip),
+        this.scanPorts(ip, ports),
+        this.detectOS(ip),
+        this.getMacAddress(ip),
       ]);
 
       result.hostname = hostname;
       result.ports = openPorts;
-      result.services = await this.serviceDetector.detectServices(ip, openPorts);
+      result.services = await this.detectServices(ip, openPorts);
       result.os = os;
       result.mac = mac;
-      result.vendor = await this.networkScanner.getVendorFromMac(mac);
+      result.vendor = await this.getVendorFromMac(mac);
 
       return result;
     } catch (error) {
