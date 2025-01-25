@@ -7,6 +7,9 @@
   --background-dark: #0f172a;
   --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   --transition-speed: 0.2s;
+  --animation-duration: 0.3s;
+  --border-radius: 16px;
+  --box-shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.12);
 }
 
 .scanner-container {
@@ -15,6 +18,7 @@
   background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%);
   max-width: 1400px;
   margin: 0 auto;
+  animation: fadeIn 0.5s ease-out;
 }
 
 .main-content {
@@ -54,6 +58,7 @@
   padding: 1.5rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
+  animation: slideIn var(--animation-duration) ease-out;
 }
 
 .device-card:hover {
@@ -193,6 +198,17 @@
   animation: fadeIn var(--transition-speed) ease forwards;
 }
 
+@keyframes slideIn {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 @media (max-width: 768px) {
   .scanner-container {
     padding: 1rem;
@@ -217,7 +233,43 @@
     padding: 1rem;
   }
 
+  .header-container {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .controls {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .search-field {
+    width: 100%;
+    min-width: unset;
+  }
+
   .stats-dashboard {
     grid-template-columns: 1fr;
+  }
+}
+
+.loading-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.1) 25%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.1) 75%
+  );
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
   }
 }

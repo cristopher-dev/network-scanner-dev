@@ -60,6 +60,10 @@ const Home: React.FC = () => {
     orderBy: 'ip',
   });
 
+  const [isFirstScan, setIsFirstScan] = useState(true);
+  const [selectedDevice, setSelectedDevice] = useState<ScanResult | null>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
   const handleFilterChange = (event: SelectChangeEvent) => {
     setFilters((prev) => ({
       ...prev,
@@ -90,19 +94,29 @@ const Home: React.FC = () => {
         styleOverrides: {
           root: {
             borderRadius: 16,
-            transition: 'transform 0.2s ease-in-out',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': {
               transform: 'translateY(-4px)',
-              boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
+              boxShadow: darkMode 
+                ? '0 8px 16px rgba(0,0,0,0.3)' 
+                : '0 8px 16px rgba(0,0,0,0.1)',
             },
           },
         },
       },
-      MuiChip: {
+      MuiButton: {
         styleOverrides: {
           root: {
             borderRadius: 8,
-            transition: 'all 0.2s ease',
+            textTransform: 'none',
+            fontWeight: 600,
+          },
+        },
+      },
+      MuiSnackbar: {
+        styleOverrides: {
+          root: {
+            bottom: '24px',
           },
         },
       },
@@ -116,6 +130,22 @@ const Home: React.FC = () => {
       active,
       inactive: results.length - active,
     });
+  }, []);
+
+  const loadScanHistory = useCallback(async () => {
+    setLoadingHistory(true);
+    try {
+      const history = await window.store.loadNetworkData();
+      if (history) {
+        setScanResults(history.results);
+        updateStats(history.results);
+        setConfig(history.config);
+      }
+    } catch (error) {
+      setError('Error al cargar el historial de escaneos');
+    } finally {
+      setLoadingHistory(false);
+    }
   }, []);
 
   const handleScan = async () => {
@@ -159,6 +189,15 @@ const Home: React.FC = () => {
           setScanResults(transformedResults);
           updateStats(transformedResults);
           setError(null);
+
+          // Guardar resultados en el almacenamiento local
+          await window.store.saveNetworkData({
+            results: transformedResults,
+            config,
+            timestamp: new Date().toISOString(),
+          });
+
+          setIsFirstScan(false);
         } else {
           throw new Error('Formato de resultados inválido');
         }
