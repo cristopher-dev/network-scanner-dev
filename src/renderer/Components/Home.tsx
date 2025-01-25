@@ -163,7 +163,9 @@ const Home: React.FC = () => {
           throw new Error('Formato de resultados inválido');
         }
       } finally {
-        removeListener(); // Limpiar el listener
+        if (typeof removeListener === 'function') {
+          removeListener(); // Limpiar el listener
+        }
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
