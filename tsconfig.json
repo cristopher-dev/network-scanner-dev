@@ -28,8 +28,9 @@
     "tsBuildInfoFile": "./.tsbuildinfo",
     "baseUrl": ".",
     "paths": {
-      "@Main/*": ["src/main/*"],
-      "@Components/*": ["src/renderer/Components/*"]
+      "@/*": ["src/*"],
+      "@components/*": ["src/renderer/components/*"],
+      "@Main/*": ["src/main/*"]
     }
   },
   "extends": "./tsconfig.node.json",

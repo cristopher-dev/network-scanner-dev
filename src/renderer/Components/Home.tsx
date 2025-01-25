@@ -17,7 +17,6 @@ import {
 import SettingsIcon from '@mui/icons-material/Settings';
 import SecurityIcon from '@mui/icons-material/Security';
 import Header from './Header';
-import ScanningProgress from './ScanningProgress';
 import StatsDashboard from './StatsDashboard';
 import ResultsGrid from './ResultsGrid';
 import ConfigDrawer from './ConfigDrawer';
@@ -36,10 +35,7 @@ interface ScanConfig {
 interface ScanResult {
   ip: string;
   status: 'up' | 'down';
-  ports?: {
-    port: number;
-    status: 'open' | 'closed';
-  }[];
+  ports?: number[]; // Cambiado de array de objetos a array de números
 }
 
 const Home: React.FC = () => {
@@ -155,8 +151,13 @@ const Home: React.FC = () => {
         const results = await window.ipc.invoke('scan-network', scanConfig);
 
         if (Array.isArray(results)) {
-          setScanResults(results);
-          updateStats(results);
+          // Convertir el formato de puertos si es necesario
+          const transformedResults = results.map((result) => ({
+            ...result,
+            ports: result.ports?.map((p: any) => p.port), // Extraer solo los números de puerto
+          }));
+          setScanResults(transformedResults);
+          updateStats(transformedResults);
           setError(null);
         } else {
           throw new Error('Formato de resultados inválido');

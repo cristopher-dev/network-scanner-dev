@@ -85,8 +85,9 @@ const Configuration: webpack.Configuration = {
   // Resolución
   resolve: {
     alias: {
+      '@': path.resolve(__dirname, '../src'),
+      '@components': path.resolve(__dirname, '../src/renderer/components'),
       '@Main': path.resolve(__dirname, '../src/main'),
-      // otros alias si los hay
     },
     extensions: ['.js', '.jsx', '.json', '.ts', '.tsx'],
     modules: [path.join(PATHS.src), 'node_modules'],

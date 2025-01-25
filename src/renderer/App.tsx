@@ -1,5 +1,5 @@
-import { createBrowserRouter, RouterProvider, UNSAFE_useScrollRestoration } from 'react-router-dom';
-import Home from '@Components/Home';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import Home from './components/Home';
 import './App.css';
 
 // Configurar las flags futuras

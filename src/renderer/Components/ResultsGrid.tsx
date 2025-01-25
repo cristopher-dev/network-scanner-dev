@@ -1,15 +1,32 @@
 import React, { useState } from 'react';
-import { Grid, Card, Box, Typography, Chip, Tooltip, Grow, Modal, Tabs, Tab } from '@mui/material';
+import {
+  Modal,
+  Box,
+  Typography,
+  Tabs,
+  Tab,
+  Chip,
+  List,
+  ListItem,
+  ListItemText,
+} from '@mui/material';
+import { DataGrid, GridColDef, GridRowParams } from '@mui/x-data-grid';
 
 interface DeviceInfo {
   ip: string;
-  status: string;
   hostname?: string;
   os?: string;
+  status: string;
   ports?: number[];
 }
 
-const DeviceDetailsModal = ({
+interface ScanHistoryEntry {
+  timestamp: string;
+  status: string;
+  portsScanned: number[];
+}
+
+export const DeviceDetailsModal = ({
   device,
   open,
   onClose,
@@ -17,89 +34,114 @@ const DeviceDetailsModal = ({
   device: DeviceInfo;
   open: boolean;
   onClose: () => void;
-}) => (
-  <Modal open={open} onClose={onClose}>
-    <Box className="device-details-modal">
-      <Typography variant="h5">{device.ip}</Typography>
-      <Tabs>
-        <Tab label="Información General" />
-        <Tab label="Puertos y Servicios" />
-        <Tab label="Historial" />
-      </Tabs>
-      <Box className="details-content">{/* Contenido detallado del dispositivo */}</Box>
-    </Box>
-  </Modal>
-);
+}) => {
+  const [tabValue, setTabValue] = useState(0);
 
-const ResultsGrid = ({ scanResults }: { scanResults: any[] }) => {
-  const [selectedDevice, setSelectedDevice] = useState(null);
+  // Simulación de datos de historial - esto debería venir de tus datos reales
+  const [history] = useState<ScanHistoryEntry[]>([
+    {
+      timestamp: new Date().toLocaleString(),
+      status: device.status,
+      portsScanned: device.ports || [],
+    },
+  ]);
+
+  // Manejador para cambios de pestaña
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
+
+  return (
+    <Modal open={open} onClose={onClose}>
+      <Box className="device-details-modal">
+        <Typography variant="h5">{device.ip}</Typography>
+        <Tabs value={tabValue} onChange={handleTabChange}>
+          <Tab label="Información General" />
+          <Tab label="Puertos y Servicios" />
+          <Tab label="Historial" />
+        </Tabs>
+        <Box className="details-content">
+          {tabValue === 0 && (
+            <Box>
+              <Typography>Hostname: {device.hostname || 'N/A'}</Typography>
+              <Typography>Sistema Operativo: {device.os || 'Desconocido'}</Typography>
+              <Typography>Estado: {device.status}</Typography>
+            </Box>
+          )}
+          {tabValue === 1 && (
+            <Box>
+              {device.ports?.map((port: number) => <Chip key={port} label={`Puerto ${port}`} />)}
+            </Box>
+          )}
+          {tabValue === 2 && (
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Historial de actividad
+              </Typography>
+              <List>
+                {history.map((entry, index) => (
+                  <ListItem key={index} divider>
+                    <ListItemText
+                      primary={`Escaneado: ${entry.timestamp}`}
+                      secondary={
+                        <>
+                          <Typography component="span" variant="body2">
+                            Estado: {entry.status}
+                          </Typography>
+                          <br />
+                          <Typography component="span" variant="body2">
+                            Puertos escaneados: {entry.portsScanned.join(', ')}
+                          </Typography>
+                        </>
+                      }
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
+          )}
+        </Box>
+      </Box>
+    </Modal>
+  );
+};
+
+interface ResultsGridProps {
+  scanResults: DeviceInfo[];
+}
+
+const ResultsGrid: React.FC<ResultsGridProps> = ({ scanResults }) => {
+  const [selectedDevice, setSelectedDevice] = useState<DeviceInfo | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  const handleCardClick = (device: any) => {
+  const columns: GridColDef[] = [
+    { field: 'ip', headerName: 'IP', flex: 1 },
+    { field: 'hostname', headerName: 'Hostname', flex: 1 },
+    { field: 'status', headerName: 'Estado', flex: 1 },
+    { field: 'os', headerName: 'Sistema Operativo', flex: 1 },
+  ];
+
+  const handleDeviceClick = (device: DeviceInfo) => {
     setSelectedDevice(device);
     setModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setModalOpen(false);
-    setSelectedDevice(null);
-  };
-
   return (
-    <Grid container spacing={3} className="results-grid">
-      {scanResults.map((result, index: number) => (
-        <Grow
-          in={true}
-          style={{ transformOrigin: '0 0 0' }}
-          timeout={300 + index * 100}
-          key={result.ip}
-        >
-          <Grid item xs={12} sm={6} md={4}>
-            <Tooltip title="Click para más detalles" arrow>
-              <Card className="device-card" onClick={() => handleCardClick(result)}>
-                <Box className="card-header">
-                  <Typography variant="h6">{result.ip}</Typography>
-                  <Chip
-                    size="small"
-                    label={result.status === 'up' ? 'Activo' : 'Inactivo'}
-                    color={result.status === 'up' ? 'success' : 'error'}
-                  />
-                </Box>
-                <Box className="card-content">
-                  {result.hostname && (
-                    <Typography variant="body2">Hostname: {result.hostname}</Typography>
-                  )}
-                  {result.os && (
-                    <Typography variant="body2" className="os-info">
-                      SO: {result.os}
-                    </Typography>
-                  )}
-                  {result.ports && (
-                    <Box className="ports-section">
-                      <Typography variant="body2">Puertos:</Typography>
-                      <Box className="ports-container">
-                        {result.ports.map((port: number) => (
-                          <Chip
-                            key={port}
-                            label={port}
-                            size="small"
-                            variant="outlined"
-                            className="port-chip"
-                          />
-                        ))}
-                      </Box>
-                    </Box>
-                  )}
-                </Box>
-              </Card>
-            </Tooltip>
-          </Grid>
-        </Grow>
-      ))}
+    <Box sx={{ height: 400, width: '100%' }}>
+      <DataGrid
+        rows={scanResults.map((result, index) => ({ ...result, id: index }))}
+        columns={columns}
+        onRowClick={(params: GridRowParams) => handleDeviceClick(params.row as DeviceInfo)}
+        disableRowSelectionOnClick
+      />
       {selectedDevice && (
-        <DeviceDetailsModal device={selectedDevice} open={modalOpen} onClose={handleCloseModal} />
+        <DeviceDetailsModal
+          device={selectedDevice}
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+        />
       )}
-    </Grid>
+    </Box>
   );
 };
 
