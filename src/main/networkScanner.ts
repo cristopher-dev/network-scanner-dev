@@ -1,9 +1,33 @@
 import ping from 'ping';
 import dns from 'dns';
 import { promisify } from 'util';
+import { EventEmitter } from 'events';
 
-export class NetworkScanner {
+interface ScanResult {
+  isAlive?: boolean;
+  os?: string;
+  mac?: string;
+  vendor?: string;
+  responseTime?: number;
+}
+
+interface ScanOptions {
+  timeout?: number;
+  detectOS?: boolean;
+  getMac?: boolean;
+  getVendor?: boolean;
+}
+
+export class NetworkScanner extends EventEmitter {
   private lookup = promisify(dns.lookup);
+  private scanCache = new Map<
+    string,
+    {
+      data: any;
+      timestamp: number;
+      networkLoad: number;
+    }
+  >();
 
   async pingHost(ip: string, timeout: number) {
     return await ping.promise.probe(ip, {
@@ -45,5 +69,34 @@ export class NetworkScanner {
     } catch {
       return undefined;
     }
+  }
+
+  async getCurrentNetworkLoad(): Promise<number> {
+    // Implementar medición de carga de red
+    return 0.5; // Ejemplo: 50% de carga
+  }
+
+  async scanWithCache(ip: string, options: ScanOptions): Promise<ScanResult> {
+    const cached = this.scanCache.get(ip);
+    const currentLoad = await this.getCurrentNetworkLoad();
+
+    if (cached && Date.now() - cached.timestamp < 300000 && currentLoad > 0.8) {
+      this.emit('cacheHit', { ip });
+      return cached.data;
+    }
+
+    const result = await this.performScan(ip, options);
+    this.scanCache.set(ip, {
+      data: result,
+      timestamp: Date.now(),
+      networkLoad: currentLoad,
+    });
+
+    return result;
+  }
+
+  private async performScan(ip: string, options: ScanOptions): Promise<ScanResult> {
+    // Implementar lógica de escaneo
+    return {} as ScanResult;
   }
 }

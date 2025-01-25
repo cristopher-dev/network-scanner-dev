@@ -55,6 +55,7 @@ export class AdvancedIpScanner extends EventEmitter {
       results: IScanResult[];
       timestamp: number;
       ttl: number;
+      networkLoad: number;
     }
   >();
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutos
@@ -72,6 +73,17 @@ export class AdvancedIpScanner extends EventEmitter {
 
   private isCacheValid(timestamp: number): boolean {
     return Date.now() - timestamp < this.CACHE_TTL;
+  }
+
+  private async shouldUseCachedResults(ip: string): Promise<boolean> {
+    const cached = this.cache.get(ip);
+    const networkLoad = await this.getCurrentNetworkLoad();
+    return (
+      (cached &&
+        Date.now() - cached.timestamp < 300000 && // 5 minutos
+        networkLoad > 0.8) ??
+      false
+    ); // Alto uso de red
   }
 
   async scanNetwork(
@@ -151,6 +163,7 @@ export class AdvancedIpScanner extends EventEmitter {
       results,
       timestamp: Date.now(),
       ttl: this.CACHE_TTL,
+      networkLoad: await this.getCurrentNetworkLoad(),
     });
 
     return results;
@@ -315,6 +328,12 @@ export class AdvancedIpScanner extends EventEmitter {
       estimatedTimeRemaining,
       speed,
     });
+  }
+
+  private async getCurrentNetworkLoad(): Promise<number> {
+    // Implementación básica: retorna un valor entre 0 y 1
+    // Esto debería reemplazarse con una implementación real que mida el uso de red
+    return Math.random();
   }
 }
 
