@@ -31,6 +31,8 @@ export interface ScanResult {
   hostname?: string;
   deviceName?: string;
   vendor?: string;
+  mac?: string;
+  macAddress?: string;
   latency?: number;
   ports?: number[];
   timestamp: number;

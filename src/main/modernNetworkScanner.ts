@@ -9,6 +9,7 @@ import systeminformation from 'systeminformation';
 import { Netmask } from 'netmask';
 import * as ipaddr from 'ipaddr.js';
 import { NETWORK_CONSTANTS, SERVICE_NAMES } from '../shared/constants';
+import { ModernHostnameResolver } from './modernHostnameResolver';
 
 import {
   ScanResult,
@@ -204,14 +205,18 @@ export class ModernNetworkScanner extends EventEmitter {
       };
 
       // Ejecutar tareas en paralelo
-      const [hostname, openPorts, osInfo] = await Promise.allSettled([
-        this.resolveHostname(ip),
+      const [deviceInfo, openPorts, osInfo] = await Promise.allSettled([
+        ModernHostnameResolver.resolveDeviceInfo(ip),
         this.scanPorts(ip, config.ports, config.timeout),
         config.enableOsDetection ? this.detectOS(ip) : Promise.resolve(undefined),
       ]);
 
-      if (hostname.status === 'fulfilled') {
-        result.hostname = hostname.value;
+      if (deviceInfo.status === 'fulfilled') {
+        result.hostname = deviceInfo.value.hostname;
+        result.deviceName = deviceInfo.value.hostname;
+        result.vendor = deviceInfo.value.vendor;
+        (result as any).mac = deviceInfo.value.macAddress;
+        (result as any).macAddress = deviceInfo.value.macAddress;
       }
 
       if (openPorts.status === 'fulfilled') {

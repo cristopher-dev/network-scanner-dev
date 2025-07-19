@@ -1,13 +1,36 @@
 import dns from 'dns';
+import { exec } from 'child_process';
 import { promisify } from 'util';
 import log from 'electron-log';
 import NodeCache from 'node-cache';
-import {
-  getDeviceTypeFromHostname,
-  getDeviceTypeFromVendor,
-  getDeviceTypeFromIP,
-} from '../shared/networkUtils';
 import { NETWORK_CONSTANTS } from '../shared/constants';
+
+const execAsync = promisify(exec);
+
+// Funciones auxiliares para detectar tipos de dispositivos
+function getDeviceTypeFromHostname(hostname?: string): string | null {
+  if (!hostname) return null;
+  const h = hostname.toLowerCase();
+  if (h.includes('router') || h.includes('gateway')) return 'Router';
+  if (h.includes('printer') || h.includes('print')) return 'Impresora';
+  if (h.includes('camera') || h.includes('cam')) return 'Cámara';
+  if (h.includes('phone') || h.includes('iphone') || h.includes('android')) return 'Teléfono';
+  return null;
+}
+
+function getDeviceTypeFromVendor(vendor?: string): string | null {
+  if (!vendor) return null;
+  const v = vendor.toLowerCase();
+  if (v.includes('apple')) return 'Dispositivo Apple';
+  if (v.includes('samsung')) return 'Dispositivo Samsung';
+  if (v.includes('cisco') || v.includes('tp-link')) return 'Dispositivo de Red';
+  return null;
+}
+
+function getDeviceTypeFromIP(ip: string): string | null {
+  if (ip.endsWith('.1') || ip.endsWith('.254')) return 'Router/Gateway';
+  return null;
+}
 
 export interface ModernDeviceInfo {
   ip: string;
@@ -134,8 +157,87 @@ export class ModernHostnameResolver {
   private static async resolveManufacturer(
     ip: string,
   ): Promise<{ macAddress?: string; vendor?: string }> {
-    // Simulación básica, se recomienda implementar con node-arp
-    return {};
+    try {
+      const mac = await this.getMacFromNodeArp(ip);
+      if (mac) {
+        const vendor = await this.getVendorFromMac(mac);
+        return { macAddress: mac, vendor: vendor || undefined };
+      }
+      return await this.getMacAddressFromARPFallback(ip);
+    } catch (error) {
+      log.warn('Error obteniendo MAC desde ARP', { ip, error });
+      return {};
+    }
+  }
+
+  private static async getMacFromNodeArp(ip: string): Promise<string | null> {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const arp = require('node-arp');
+      return new Promise<string | null>((resolve) => {
+        arp.getMAC(ip, (err: Error | null, mac?: string) => resolve(err || !mac ? null : mac));
+      });
+    } catch (error) {
+      log.warn('node-arp falló', { ip, error });
+      return null;
+    }
+  }
+
+  private static async getMacAddressFromARPFallback(
+    ip: string,
+  ): Promise<{ macAddress?: string; vendor?: string }> {
+    try {
+      let command = process.platform === 'win32' ? `arp -a ${ip}` : `arp -n ${ip}`;
+      const { stdout } = await execAsync(command, { timeout: 3000 });
+      let match;
+      if (process.platform === 'win32') {
+        match =
+          /([a-fA-F0-9]{2}-[a-fA-F0-9]{2}-[a-fA-F0-9]{2}-[a-fA-F0-9]{2}-[a-fA-F0-9]{2}-[a-fA-F0-9]{2})/.exec(
+            stdout,
+          );
+        if (match) {
+          const mac = match[1].replace(/-/g, ':');
+          const vendor = await this.getVendorFromMac(mac);
+          return { macAddress: mac, vendor: vendor || undefined };
+        }
+      } else {
+        match =
+          /([a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2})/.exec(
+            stdout,
+          );
+        if (match) {
+          const mac = match[1];
+          const vendor = await this.getVendorFromMac(mac);
+          return { macAddress: mac, vendor: vendor || undefined };
+        }
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  }
+
+  private static async getVendorFromMac(mac: string): Promise<string | null> {
+    try {
+      const oui = mac.substring(0, 8).replace(/:/g, '').toUpperCase().substring(0, 6);
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const macLookup = require('mac-lookup');
+        const vendor = await macLookup.lookup(mac);
+        if (vendor) return vendor;
+      } catch {}
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const ouiData = require('oui-data');
+        const ouiEntry = ouiData.find(
+          (entry: { oui: string; organization: string }) => entry.oui === oui,
+        );
+        if (ouiEntry) return ouiEntry.organization;
+      } catch {}
+      return null;
+    } catch {
+      return null;
+    }
   }
 
   /**
