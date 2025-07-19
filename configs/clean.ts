@@ -25,10 +25,11 @@ async function cleanDirectories(targets: string[]): Promise<void> {
 }
 
 // Manejo de comandos
-const command = process.argv[2] as keyof typeof CLEAN_TARGETS;
+const command = process.argv[2];
+const cleanCommand = command?.replace('--', '') as keyof typeof CLEAN_TARGETS;
 
-if (command && command in CLEAN_TARGETS) {
-  cleanDirectories([...CLEAN_TARGETS[command]])
+if (cleanCommand && cleanCommand in CLEAN_TARGETS) {
+  cleanDirectories([...CLEAN_TARGETS[cleanCommand]])
     .then(() => console.log(`🎉 Clean operation '${command}' completed!`))
     .catch(console.error);
 } else {

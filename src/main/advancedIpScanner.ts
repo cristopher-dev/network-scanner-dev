@@ -3,8 +3,6 @@ import ping from 'ping';
 import dns from 'dns';
 import { promisify } from 'util';
 import { EventEmitter } from 'events';
-import pLimit from 'p-limit';
-import retry from 'async-retry';
 import NodeCache from 'node-cache';
 
 interface IScanResult {
@@ -43,7 +41,7 @@ export class AdvancedIpScanner extends EventEmitter {
   private isScanning = false;
   private scanTimeout = 2000; // timeout en ms
   private readonly cache: NodeCache;
-  private readonly concurrencyLimit = pLimit(10); // Limitar concurrencia
+  private readonly concurrencyLimit = 10; // Límite de concurrencia simple
 
   // Método público para establecer el timeout
   public setScanTimeout(timeout: number): void {
@@ -64,6 +62,41 @@ export class AdvancedIpScanner extends EventEmitter {
       checkperiod: 120, // Verificar cada 2 minutos
       useClones: false,
     });
+  }
+
+  // Implementación simple de límite de concurrencia
+  private async runWithConcurrencyLimit<T>(
+    tasks: (() => Promise<T>)[],
+    limit: number = this.concurrencyLimit,
+  ): Promise<T[]> {
+    const results: T[] = [];
+
+    for (let i = 0; i < tasks.length; i += limit) {
+      const batch = tasks.slice(i, i + limit);
+      const batchResults = await Promise.all(batch.map((task) => task()));
+      results.push(...batchResults);
+    }
+
+    return results;
+  }
+
+  // Implementación simple de retry
+  private async retryOperation<T>(
+    operation: () => Promise<T>,
+    maxRetries: number = 3,
+    delay: number = 1000,
+  ): Promise<T> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (attempt === maxRetries) {
+          throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, delay * attempt));
+      }
+    }
+    throw new Error('Max retries exceeded');
   }
 
   private getCacheKey(baseIp: string, startRange: number, endRange: number): string {
