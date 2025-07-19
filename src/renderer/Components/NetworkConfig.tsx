@@ -22,6 +22,7 @@ import {
   ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import { NetworkUtils } from '../../shared/clientUtils';
+import { NETWORK_CONSTANTS } from '../../shared/constants';
 
 interface NetworkInfo {
   baseIp: string;
@@ -71,7 +72,12 @@ const NetworkConfigComponent: React.FC<NetworkConfigProps> = ({
     setConfig((prev: any) => ({ ...prev, [field]: value }));
 
   const handleNetworkSelect = (n: NetworkInfo) =>
-    setConfig((p: any) => ({ ...p, baseIp: n.baseIp, startRange: 1, endRange: 254 }));
+    setConfig((p: any) => ({
+      ...p,
+      baseIp: n.baseIp,
+      startRange: NETWORK_CONSTANTS.DEFAULT_START_RANGE,
+      endRange: NETWORK_CONSTANTS.DEFAULT_END_RANGE,
+    }));
 
   const handleCommonConfigSelect = (c: any) => setConfig((p: any) => ({ ...p, baseIp: c.baseIp }));
 
@@ -188,7 +194,7 @@ const NetworkConfigComponent: React.FC<NetworkConfigProps> = ({
             label="IP Base"
             value={config.baseIp}
             onChange={(e) => handleConfigChange('baseIp', e.target.value)}
-            placeholder="192.168.1"
+            placeholder={NETWORK_CONSTANTS.DEFAULT_BASE_IP}
             disabled={scanning}
             helperText="Primeros 3 octetos de la IP"
           />
@@ -199,9 +205,17 @@ const NetworkConfigComponent: React.FC<NetworkConfigProps> = ({
             type="number"
             label="Inicio"
             value={config.startRange}
-            onChange={(e) => handleConfigChange('startRange', parseInt(e.target.value) || 1)}
+            onChange={(e) =>
+              handleConfigChange(
+                'startRange',
+                parseInt(e.target.value) || NETWORK_CONSTANTS.DEFAULT_START_RANGE,
+              )
+            }
             disabled={scanning}
-            inputProps={{ min: 1, max: 254 }}
+            inputProps={{
+              min: NETWORK_CONSTANTS.IP_RANGE_MIN,
+              max: NETWORK_CONSTANTS.IP_RANGE_MAX,
+            }}
           />
         </Grid>
         <Grid item xs={6} sm={4}>
@@ -210,9 +224,17 @@ const NetworkConfigComponent: React.FC<NetworkConfigProps> = ({
             type="number"
             label="Fin"
             value={config.endRange}
-            onChange={(e) => handleConfigChange('endRange', parseInt(e.target.value) || 254)}
+            onChange={(e) =>
+              handleConfigChange(
+                'endRange',
+                parseInt(e.target.value) || NETWORK_CONSTANTS.DEFAULT_END_RANGE,
+              )
+            }
             disabled={scanning}
-            inputProps={{ min: 1, max: 254 }}
+            inputProps={{
+              min: NETWORK_CONSTANTS.IP_RANGE_MIN,
+              max: NETWORK_CONSTANTS.IP_RANGE_MAX,
+            }}
           />
         </Grid>
         <Grid item xs={12}>
@@ -251,9 +273,18 @@ const NetworkConfigComponent: React.FC<NetworkConfigProps> = ({
                 type="number"
                 label="Timeout (ms)"
                 value={config.timeout}
-                onChange={(e) => handleConfigChange('timeout', parseInt(e.target.value) || 2000)}
+                onChange={(e) =>
+                  handleConfigChange(
+                    'timeout',
+                    parseInt(e.target.value) || NETWORK_CONSTANTS.DEFAULT_SCAN_TIMEOUT,
+                  )
+                }
                 disabled={scanning}
-                inputProps={{ min: 500, max: 10000, step: 100 }}
+                inputProps={{
+                  min: NETWORK_CONSTANTS.UI_TIMEOUT_MIN,
+                  max: NETWORK_CONSTANTS.UI_TIMEOUT_MAX,
+                  step: NETWORK_CONSTANTS.UI_TIMEOUT_STEP,
+                }}
                 helperText="Tiempo límite por conexión"
               />
             </Grid>
@@ -263,7 +294,12 @@ const NetworkConfigComponent: React.FC<NetworkConfigProps> = ({
                 type="number"
                 label="Tamaño de Lote"
                 value={config.batchSize}
-                onChange={(e) => handleConfigChange('batchSize', parseInt(e.target.value) || 10)}
+                onChange={(e) =>
+                  handleConfigChange(
+                    'batchSize',
+                    parseInt(e.target.value) || NETWORK_CONSTANTS.DEFAULT_BATCH_SIZE,
+                  )
+                }
                 disabled={scanning}
                 inputProps={{ min: 1, max: 50 }}
                 helperText="IPs escaneadas simultáneamente"

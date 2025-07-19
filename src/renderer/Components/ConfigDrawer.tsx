@@ -1,4 +1,5 @@
 import React from 'react';
+import { NETWORK_CONSTANTS } from '../../shared/constants';
 import { Drawer, Box, Typography, List, ListItem, Slider, TextField } from '@mui/material';
 
 interface Config {
@@ -26,16 +27,16 @@ const ConfigDrawer: React.FC<Props> = ({ drawerOpen, setDrawerOpen, config, setC
           label="Timeout (ms)"
           value={config.timeout}
           onChange={(v) => setConfig({ ...config, timeout: v })}
-          min={500}
-          max={5000}
-          step={100}
+          min={NETWORK_CONSTANTS.UI_TIMEOUT_MIN}
+          max={NETWORK_CONSTANTS.SLIDER_MAX_TIMEOUT}
+          step={NETWORK_CONSTANTS.UI_TIMEOUT_STEP}
         />
         <ConfigSlider
           label="Tamaño de Lote"
           value={config.batchSize}
           onChange={(v) => setConfig({ ...config, batchSize: v })}
           min={5}
-          max={50}
+          max={NETWORK_CONSTANTS.MAX_BATCH_SIZE}
           step={5}
         />
         <ConfigRange

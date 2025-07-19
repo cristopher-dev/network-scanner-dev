@@ -7,6 +7,7 @@ import {
   getDeviceTypeFromVendor,
   getDeviceTypeFromIP,
 } from '../shared/networkUtils';
+import { NETWORK_CONSTANTS } from '../shared/constants';
 
 export interface ModernDeviceInfo {
   ip: string;
@@ -21,8 +22,8 @@ export interface ModernDeviceInfo {
 
 export class ModernHostnameResolver {
   private static readonly cache: NodeCache = new NodeCache({
-    stdTTL: 600,
-    checkperiod: 120,
+    stdTTL: NETWORK_CONSTANTS.CACHE_TTL,
+    checkperiod: NETWORK_CONSTANTS.CACHE_CHECK_PERIOD,
     useClones: false,
   });
 

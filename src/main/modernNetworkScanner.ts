@@ -8,6 +8,7 @@ import log from 'electron-log';
 import systeminformation from 'systeminformation';
 import { Netmask } from 'netmask';
 import * as ipaddr from 'ipaddr.js';
+import { NETWORK_CONSTANTS, SERVICE_NAMES } from '../shared/constants';
 
 import {
   ScanResult,
@@ -31,8 +32,8 @@ export class ModernNetworkScanner extends EventEmitter {
   constructor() {
     super();
     this.cache = new NodeCache({
-      stdTTL: 300, // 5 minutos
-      checkperiod: 120,
+      stdTTL: NETWORK_CONSTANTS.ADVANCED_CACHE_TTL,
+      checkperiod: NETWORK_CONSTANTS.CACHE_CHECK_PERIOD,
       useClones: false,
     });
   }
@@ -305,9 +306,9 @@ export class ModernNetworkScanner extends EventEmitter {
           const ttl = parseInt(ttlMatch[1], 10);
 
           // Heurística basada en TTL común
-          if (ttl <= 64) return 'Linux/Unix';
-          if (ttl <= 128) return 'Windows';
-          if (ttl <= 255) return 'Solaris/AIX';
+          if (ttl <= NETWORK_CONSTANTS.TTL_LINUX_UNIX) return 'Linux/Unix';
+          if (ttl <= NETWORK_CONSTANTS.TTL_WINDOWS) return 'Windows';
+          if (ttl <= NETWORK_CONSTANTS.TTL_SOLARIS_AIX) return 'Solaris/AIX';
         }
       }
     } catch {
@@ -324,29 +325,9 @@ export class ModernNetworkScanner extends EventEmitter {
     ip: string,
     ports: number[],
   ): Promise<Array<{ port: number; name: string }>> {
-    const commonServices: Record<number, string> = {
-      21: 'FTP',
-      22: 'SSH',
-      23: 'Telnet',
-      25: 'SMTP',
-      53: 'DNS',
-      80: 'HTTP',
-      110: 'POP3',
-      143: 'IMAP',
-      443: 'HTTPS',
-      993: 'IMAPS',
-      995: 'POP3S',
-      3389: 'RDP',
-      5432: 'PostgreSQL',
-      3306: 'MySQL',
-      1433: 'SQL Server',
-      5984: 'CouchDB',
-      27017: 'MongoDB',
-    };
-
     return ports.map((port) => ({
       port,
-      name: commonServices[port] || 'Unknown',
+      name: SERVICE_NAMES[port] || 'Unknown',
     }));
   }
 

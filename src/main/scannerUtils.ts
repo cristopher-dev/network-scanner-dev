@@ -1,11 +1,12 @@
 import { nodenmap } from 'node-nmap';
 import ping from 'ping';
 import { IScanResult } from '../shared/types';
+import { NETWORK_CONSTANTS } from '../shared/constants';
 
 export async function scanHost(
   ip: string,
   ports: number[],
-  scanTimeout = 2000,
+  scanTimeout = NETWORK_CONSTANTS.DEFAULT_SCAN_TIMEOUT,
 ): Promise<IScanResult | null> {
   try {
     const res = await ping.promise.probe(ip, { timeout: scanTimeout / 1000 });
@@ -27,7 +28,7 @@ export async function scanNetworkWithNmap(
   startRange: number,
   endRange: number,
   ports: number[],
-  scanTimeout = 2000,
+  scanTimeout = NETWORK_CONSTANTS.DEFAULT_SCAN_TIMEOUT,
 ): Promise<IScanResult[]> {
   const range = `${baseIp}.${startRange}-${endRange}`;
 

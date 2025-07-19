@@ -11,16 +11,21 @@ import { ModernNetworkScanner } from './modernNetworkScanner';
 import { ModernNetworkDetector } from './modernNetworkDetector';
 import { ModernHostnameResolver } from './modernHostnameResolver';
 import Store from 'electron-store';
+import { NETWORK_CONSTANTS } from '../shared/constants';
 
-const defaultNetworkConfig = { baseIp: '192.168.1', startRange: 1, endRange: 254 };
+const defaultNetworkConfig = {
+  baseIp: NETWORK_CONSTANTS.DEFAULT_BASE_IP,
+  startRange: NETWORK_CONSTANTS.DEFAULT_START_RANGE,
+  endRange: NETWORK_CONSTANTS.DEFAULT_END_RANGE,
+};
 const store = new Store({
   name: 'network-data',
   defaults: {
     scanResults: [],
     scanConfig: {
-      timeout: 2000,
-      batchSize: 10,
-      ports: [20, 21, 22, 23, 25, 53, 80, 443, 445, 3389],
+      timeout: NETWORK_CONSTANTS.DEFAULT_SCAN_TIMEOUT,
+      batchSize: NETWORK_CONSTANTS.DEFAULT_BATCH_SIZE,
+      ports: NETWORK_CONSTANTS.DEFAULT_PORTS,
       ...defaultNetworkConfig,
     },
   },
@@ -28,8 +33,8 @@ const store = new Store({
 
 const windowConfig = {
   icon: getAssetsPath('icon.ico'),
-  width: 1100,
-  height: 750,
+  width: NETWORK_CONSTANTS.WINDOW_WIDTH,
+  height: NETWORK_CONSTANTS.WINDOW_HEIGHT,
   webPreferences: {
     devTools: isDebug,
     preload: getPreloadPath('preload.js'),
@@ -188,9 +193,9 @@ const setupIpc = (): void => {
         baseIp: scanConfig.baseIp,
         startRange: scanConfig.startRange,
         endRange: scanConfig.endRange,
-        ports: scanConfig.ports || [22, 80, 443],
-        timeout: scanConfig.timeout || 2000,
-        maxConcurrency: scanConfig.maxConcurrency || 15,
+        ports: scanConfig.ports || NETWORK_CONSTANTS.COMMON_PORTS,
+        timeout: scanConfig.timeout || NETWORK_CONSTANTS.DEFAULT_SCAN_TIMEOUT,
+        maxConcurrency: scanConfig.maxConcurrency || NETWORK_CONSTANTS.DEFAULT_CONCURRENCY_LIMIT,
         enableOsDetection: scanConfig.enableOsDetection || false,
         enableServiceDetection: scanConfig.enableServiceDetection || true,
       };

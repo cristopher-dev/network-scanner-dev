@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import ping from 'ping';
 import net from 'net';
+import { NETWORK_CONSTANTS } from '../shared/constants';
 
 export interface IScanResult {
   ip: string;
@@ -10,14 +11,14 @@ export interface IScanResult {
 
 export class PureNpmScanner extends EventEmitter {
   private isScanning = false;
-  private scanTimeout = 2000;
-  private concurrencyLimit = 10;
+  private readonly scanTimeout = NETWORK_CONSTANTS.DEFAULT_SCAN_TIMEOUT;
+  private readonly concurrencyLimit = NETWORK_CONSTANTS.DEFAULT_CONCURRENCY_LIMIT;
 
   async scanNetwork(
-    baseIp: string = '192.168.1',
-    startRange: number = 1,
-    endRange: number = 254,
-    ports: number[] = [80, 443],
+    baseIp: string = NETWORK_CONSTANTS.DEFAULT_BASE_IP,
+    startRange: number = NETWORK_CONSTANTS.DEFAULT_START_RANGE,
+    endRange: number = NETWORK_CONSTANTS.DEFAULT_END_RANGE,
+    ports: number[] = [...NETWORK_CONSTANTS.COMMON_PORTS],
   ): Promise<IScanResult[]> {
     if (this.isScanning) throw new Error('Scan already in progress');
     this.isScanning = true;

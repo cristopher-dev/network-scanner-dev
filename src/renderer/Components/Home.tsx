@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { ScanResult } from '../../shared/types';
+import { NETWORK_CONSTANTS } from '../../shared/constants';
 import {
   ThemeProvider,
   createTheme,
@@ -52,12 +53,12 @@ const Home: React.FC = () => {
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState<Config>({
-    timeout: 2000,
-    batchSize: 10,
-    ports: [20, 21, 22, 23, 25, 53, 80, 443, 445, 3389, 8080],
-    baseIp: '192.168.1', // Valor por defecto más común
-    startRange: 1,
-    endRange: 254,
+    timeout: NETWORK_CONSTANTS.DEFAULT_SCAN_TIMEOUT,
+    batchSize: NETWORK_CONSTANTS.DEFAULT_BATCH_SIZE,
+    ports: [...NETWORK_CONSTANTS.DEFAULT_PORTS],
+    baseIp: NETWORK_CONSTANTS.DEFAULT_BASE_IP,
+    startRange: NETWORK_CONSTANTS.DEFAULT_START_RANGE,
+    endRange: NETWORK_CONSTANTS.DEFAULT_END_RANGE,
   });
   const [availableNetworks, setAvailableNetworks] = useState<any[]>([]);
   const [autoDetecting, setAutoDetecting] = useState(false);

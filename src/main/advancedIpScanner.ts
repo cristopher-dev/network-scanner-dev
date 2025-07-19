@@ -4,15 +4,15 @@ import dns from 'dns';
 import { promisify } from 'util';
 import { EventEmitter } from 'events';
 import NodeCache from 'node-cache';
-
 import { IScanResult, ScanError } from '../shared/types';
+import { NETWORK_CONSTANTS, SERVICE_NAMES } from '../shared/constants';
 
 export class AdvancedIpScanner extends EventEmitter {
   private readonly lookup = promisify(dns.lookup);
   private isScanning = false;
-  private scanTimeout = 2000; // timeout en ms
+  private scanTimeout: number = NETWORK_CONSTANTS.DEFAULT_SCAN_TIMEOUT;
   private readonly cache: NodeCache;
-  private readonly concurrencyLimit = 10; // Límite de concurrencia simple
+  private readonly concurrencyLimit = NETWORK_CONSTANTS.DEFAULT_CONCURRENCY_LIMIT;
 
   // Método público para establecer el timeout
   public setScanTimeout(timeout: number): void {
@@ -29,8 +29,8 @@ export class AdvancedIpScanner extends EventEmitter {
 
     // Inicializar cache con NodeCache
     this.cache = new NodeCache({
-      stdTTL: 300, // 5 minutos
-      checkperiod: 120, // Verificar cada 2 minutos
+      stdTTL: NETWORK_CONSTANTS.ADVANCED_CACHE_TTL,
+      checkperiod: NETWORK_CONSTANTS.CACHE_CHECK_PERIOD,
       useClones: false,
     });
   }
@@ -85,10 +85,10 @@ export class AdvancedIpScanner extends EventEmitter {
   }
 
   async scanNetwork(
-    baseIp: string = '192.168.10',
-    startRange: number = 1,
-    endRange: number = 254,
-    ports: number[] = [20, 21, 22, 23, 25, 53, 80, 443, 445, 3389],
+    baseIp: string = NETWORK_CONSTANTS.DEFAULT_BASE_IP,
+    startRange: number = NETWORK_CONSTANTS.DEFAULT_START_RANGE,
+    endRange: number = NETWORK_CONSTANTS.DEFAULT_END_RANGE,
+    ports: number[] = [...NETWORK_CONSTANTS.DEFAULT_PORTS],
     useNmapDirect: boolean = true, // New parameter to use nmap directly
   ): Promise<IScanResult[]> {
     // Agregar signal para cancelación
@@ -293,9 +293,9 @@ export class AdvancedIpScanner extends EventEmitter {
             // Fallback to TTL-based detection
             this.getTTL(ip)
               .then((ttl) => {
-                if (ttl === 128) resolve('Windows');
-                else if (ttl === 64) resolve('Linux/Unix');
-                else if (ttl === 254) resolve('Solaris/AIX');
+                if (ttl === NETWORK_CONSTANTS.TTL_WINDOWS) resolve('Windows');
+                else if (ttl === NETWORK_CONSTANTS.TTL_LINUX_UNIX) resolve('Linux/Unix');
+                else if (ttl === NETWORK_CONSTANTS.TTL_SOLARIS_AIX) resolve('Solaris/AIX');
                 else resolve(undefined);
               })
               .catch(() => resolve(undefined));
@@ -310,9 +310,9 @@ export class AdvancedIpScanner extends EventEmitter {
           // Fallback to TTL method on timeout
           this.getTTL(ip)
             .then((ttl) => {
-              if (ttl === 128) resolve('Windows');
-              else if (ttl === 64) resolve('Linux/Unix');
-              else if (ttl === 254) resolve('Solaris/AIX');
+              if (ttl === NETWORK_CONSTANTS.TTL_WINDOWS) resolve('Windows');
+              else if (ttl === NETWORK_CONSTANTS.TTL_LINUX_UNIX) resolve('Linux/Unix');
+              else if (ttl === NETWORK_CONSTANTS.TTL_SOLARIS_AIX) resolve('Solaris/AIX');
               else resolve(undefined);
             })
             .catch(() => resolve(undefined));
@@ -326,9 +326,9 @@ export class AdvancedIpScanner extends EventEmitter {
       // Fallback to TTL-based detection
       try {
         const ttl = await this.getTTL(ip);
-        if (ttl === 128) return 'Windows';
-        if (ttl === 64) return 'Linux/Unix';
-        if (ttl === 254) return 'Solaris/AIX';
+        if (ttl === NETWORK_CONSTANTS.TTL_WINDOWS) return 'Windows';
+        if (ttl === NETWORK_CONSTANTS.TTL_LINUX_UNIX) return 'Linux/Unix';
+        if (ttl === NETWORK_CONSTANTS.TTL_SOLARIS_AIX) return 'Solaris/AIX';
         return undefined;
       } catch {
         return undefined;
@@ -363,21 +363,9 @@ export class AdvancedIpScanner extends EventEmitter {
     ip: string,
     ports: number[],
   ): Promise<{ port: number; name: string }[]> {
-    const commonServices: Record<number, string> = {
-      21: 'FTP',
-      22: 'SSH',
-      23: 'Telnet',
-      25: 'SMTP',
-      53: 'DNS',
-      80: 'HTTP',
-      443: 'HTTPS',
-      445: 'SMB',
-      3389: 'RDP',
-    };
-
     return ports.map((port) => ({
       port,
-      name: commonServices[port] || 'Unknown',
+      name: SERVICE_NAMES[port] || 'Unknown',
     }));
   }
 

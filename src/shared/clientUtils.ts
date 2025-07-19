@@ -1,9 +1,15 @@
+import { NETWORK_CONSTANTS, NETWORK_CONFIGS } from './constants';
+
 export function isPrivateIP(ip: string): boolean {
   return /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\./.test(ip);
 }
 
 export function isValidPort(port: number): boolean {
-  return Number.isInteger(port) && port >= 1 && port <= 65535;
+  return (
+    Number.isInteger(port) &&
+    port >= NETWORK_CONSTANTS.PORT_MIN &&
+    port <= NETWORK_CONSTANTS.PORT_MAX
+  );
 }
 
 export function parsePortsString(portsString: string): number[] {
@@ -20,12 +26,22 @@ export function validateScanConfig(config: any): any {
     errors.push('IP base inválida');
   }
 
-  if (config.startRange < 1 || config.startRange > 254) {
-    errors.push('Rango de inicio debe estar entre 1 y 254');
+  if (
+    config.startRange < NETWORK_CONSTANTS.IP_RANGE_MIN ||
+    config.startRange > NETWORK_CONSTANTS.IP_RANGE_MAX
+  ) {
+    errors.push(
+      `Rango de inicio debe estar entre ${NETWORK_CONSTANTS.IP_RANGE_MIN} y ${NETWORK_CONSTANTS.IP_RANGE_MAX}`,
+    );
   }
 
-  if (config.endRange < 1 || config.endRange > 254) {
-    errors.push('Rango final debe estar entre 1 y 254');
+  if (
+    config.endRange < NETWORK_CONSTANTS.IP_RANGE_MIN ||
+    config.endRange > NETWORK_CONSTANTS.IP_RANGE_MAX
+  ) {
+    errors.push(
+      `Rango final debe estar entre ${NETWORK_CONSTANTS.IP_RANGE_MIN} y ${NETWORK_CONSTANTS.IP_RANGE_MAX}`,
+    );
   }
 
   if (config.startRange > config.endRange) {
@@ -43,7 +59,11 @@ export function estimateScanTime(config: any): number {
   const hostCount = config.endRange - config.startRange + 1;
   const portCount = config.ports?.length || 0;
   const totalScans = hostCount * portCount;
-  return Math.ceil((totalScans * (config.timeout || 2000)) / 1000 / (config.batchSize || 50));
+  return Math.ceil(
+    (totalScans * (config.timeout || NETWORK_CONSTANTS.DEFAULT_SCAN_TIMEOUT)) /
+      1000 /
+      (config.batchSize || NETWORK_CONSTANTS.DEFAULT_BATCH_SIZE),
+  );
 }
 
 export function formatEstimatedTime(seconds: number): string {
@@ -54,12 +74,7 @@ export function formatEstimatedTime(seconds: number): string {
 }
 
 export function getCommonNetworkConfigs() {
-  return [
-    { name: '192.168.1.x', baseIp: '192.168.1', description: 'Red doméstica común' },
-    { name: '192.168.0.x', baseIp: '192.168.0', description: 'Red doméstica alternativa' },
-    { name: '10.0.0.x', baseIp: '10.0.0', description: 'Red empresarial' },
-    { name: '172.16.0.x', baseIp: '172.16.0', description: 'Red privada clase B' },
-  ];
+  return NETWORK_CONFIGS;
 }
 
 export const NetworkUtils = {
