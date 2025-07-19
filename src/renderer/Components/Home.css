@@ -300,3 +300,58 @@
 .scanning-progress {
   animation: progressPulse 1.5s ease-in-out infinite;
 }
+
+/* Estilos para botones de escaneo */
+.scan-button-primary {
+  background: linear-gradient(45deg, #3b82f6 30%, #2563eb 90%) !important;
+  border-radius: 12px !important;
+  padding: 12px 24px !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  min-width: 160px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3) !important;
+}
+
+.scan-button-primary:hover {
+  background: linear-gradient(45deg, #2563eb 30%, #1d4ed8 90%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4) !important;
+}
+
+.scan-button-primary:disabled {
+  background: linear-gradient(45deg, #6b7280 30%, #4b5563 90%) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.scan-button-scanning {
+  background: linear-gradient(45deg, #ef4444 30%, #dc2626 90%) !important;
+  animation: scanningPulse 2s ease-in-out infinite !important;
+}
+
+@keyframes scanningPulse {
+  0%,
+  100% {
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+  }
+}
+
+.empty-state-card {
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.1) 0%,
+    rgba(244, 114, 182, 0.1) 100%
+  ) !important;
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+  border-radius: 16px !important;
+  transition: all 0.3s ease !important;
+}
+
+.empty-state-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 12px 24px rgba(59, 130, 246, 0.15) !important;
+}

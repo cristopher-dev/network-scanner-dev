@@ -13,9 +13,15 @@ import {
   SpeedDialAction,
   LinearProgress,
   SelectChangeEvent,
+  Button,
+  Typography,
+  Card,
+  CardContent,
 } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SecurityIcon from '@mui/icons-material/Security';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import NetworkCheckIcon from '@mui/icons-material/NetworkCheck';
 import Header from './Header';
 import StatsDashboard from './StatsDashboard';
 import ResultsGrid from './ResultsGrid';
@@ -60,10 +66,6 @@ const Home: React.FC = () => {
     orderBy: 'ip',
   });
 
-  const [isFirstScan, setIsFirstScan] = useState(true);
-  const [selectedDevice, setSelectedDevice] = useState<ScanResult | null>(null);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-
   const handleFilterChange = (event: SelectChangeEvent) => {
     setFilters((prev) => ({
       ...prev,
@@ -97,9 +99,7 @@ const Home: React.FC = () => {
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': {
               transform: 'translateY(-4px)',
-              boxShadow: darkMode
-                ? '0 8px 16px rgba(0,0,0,0.3)'
-                : '0 8px 16px rgba(0,0,0,0.1)',
+              boxShadow: darkMode ? '0 8px 16px rgba(0,0,0,0.3)' : '0 8px 16px rgba(0,0,0,0.1)',
             },
           },
         },
@@ -130,22 +130,6 @@ const Home: React.FC = () => {
       active,
       inactive: results.length - active,
     });
-  }, []);
-
-  const loadScanHistory = useCallback(async () => {
-    setLoadingHistory(true);
-    try {
-      const history = await window.store.loadNetworkData();
-      if (history) {
-        setScanResults(history.results);
-        updateStats(history.results);
-        setConfig(history.config);
-      }
-    } catch (error) {
-      setError('Error al cargar el historial de escaneos');
-    } finally {
-      setLoadingHistory(false);
-    }
   }, []);
 
   const handleScan = async () => {
@@ -196,8 +180,6 @@ const Home: React.FC = () => {
             config,
             timestamp: new Date().toISOString(),
           });
-
-          setIsFirstScan(false);
         } else {
           throw new Error('Formato de resultados inválido');
         }
@@ -235,28 +217,95 @@ const Home: React.FC = () => {
                 width: '100%',
                 mb: 2,
                 position: 'relative',
-                overflow: 'hidden'
+                overflow: 'hidden',
               }}
             >
               <LinearProgress
-                variant={progress === 0 ? "indeterminate" : "determinate"}
+                variant={progress === 0 ? 'indeterminate' : 'determinate'}
                 value={progress}
                 sx={{
                   height: 8,
                   borderRadius: 4,
                   '& .MuiLinearProgress-bar': {
-                    backgroundImage: 'linear-gradient(45deg, rgba(59, 130, 246, 0.8) 30%, rgba(244, 114, 182, 0.8) 90%)',
+                    backgroundImage:
+                      'linear-gradient(45deg, rgba(59, 130, 246, 0.8) 30%, rgba(244, 114, 182, 0.8) 90%)',
                     transition: 'transform 0.4s linear',
                   },
-                  backgroundColor: theme.palette.mode === 'dark'
-                    ? 'rgba(255, 255, 255, 0.08)'
-                    : 'rgba(0, 0, 0, 0.08)',
+                  backgroundColor:
+                    theme.palette.mode === 'dark'
+                      ? 'rgba(255, 255, 255, 0.08)'
+                      : 'rgba(0, 0, 0, 0.08)',
                 }}
               />
             </Box>
           )}
           <FilterMenu filters={filters} onFilterChange={handleFilterChange} />
           <StatsDashboard stats={stats} />
+          {scanResults.length === 0 && !scanning && (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                py: 8,
+                textAlign: 'center',
+              }}
+            >
+              <Card
+                sx={{
+                  maxWidth: 400,
+                  p: 4,
+                  background:
+                    theme.palette.mode === 'dark'
+                      ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(244, 114, 182, 0.1) 100%)'
+                      : 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(244, 114, 182, 0.05) 100%)',
+                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)'}`,
+                  borderRadius: 3,
+                }}
+              >
+                <CardContent>
+                  <NetworkCheckIcon
+                    sx={{
+                      fontSize: 64,
+                      color: 'primary.main',
+                      mb: 2,
+                      opacity: 0.8,
+                    }}
+                  />
+                  <Typography variant="h5" gutterBottom fontWeight="bold">
+                    Descubre tu Red
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                    Escanea tu red para encontrar dispositivos conectados, puertos abiertos y
+                    servicios activos.
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    size="large"
+                    onClick={handleScan}
+                    startIcon={<PlayArrowIcon />}
+                    sx={{
+                      borderRadius: 2,
+                      px: 4,
+                      py: 1.5,
+                      fontSize: '1.1rem',
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      background: 'linear-gradient(45deg, #3b82f6 30%, #2563eb 90%)',
+                      '&:hover': {
+                        background: 'linear-gradient(45deg, #2563eb 30%, #1d4ed8 90%)',
+                        transform: 'translateY(-2px)',
+                      },
+                      transition: 'all 0.3s ease',
+                    }}
+                  >
+                    Iniciar Escaneo
+                  </Button>
+                </CardContent>
+              </Card>
+            </Box>
+          )}
           <ResultsGrid scanResults={scanResults} />
         </Paper>
         <SpeedDial

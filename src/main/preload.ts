@@ -16,14 +16,38 @@ const ipcApi = {
       ipcRenderer.on(channel, subscription);
       return () => ipcRenderer.removeListener(channel, subscription);
     }
-  }
+  },
+  // Legacy methods for compatibility
+  send: (channel: string, data: unknown) => {
+    ipcRenderer.send(channel, data);
+  },
+  receive: (channel: string, callback: (...args: unknown[]) => void) => {
+    ipcRenderer.on(channel, callback);
+  },
+  set: (key: string, value: unknown) => {
+    ipcRenderer.send('set', key, value);
+  },
+  get: (key: string) => {
+    return ipcRenderer.invoke('get', key);
+  },
+};
+
+const storeApi = {
+  saveNetworkData: (data: any) => {
+    return ipcRenderer.invoke('store-save', data);
+  },
+  loadNetworkData: () => {
+    return ipcRenderer.invoke('store-load');
+  },
 };
 
 contextBridge.exposeInMainWorld('ipc', ipcApi);
+contextBridge.exposeInMainWorld('store', storeApi);
 
 // Tipos globales
 declare global {
   interface Window {
     ipc: typeof ipcApi;
+    store: typeof storeApi;
   }
 }

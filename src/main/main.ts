@@ -87,15 +87,28 @@ const setupIpc = (): void => {
   ipcMain.handle('get', (_event, key) => store.get(key));
 
   // Manejar el escaneo de red
-  ipcMain.handle('scan-network', async (_event, scanConfig) => {
+  ipcMain.handle('scan-network', async (event, scanConfig) => {
     try {
-      const scanner = new AdvancedIpScanner();
+      console.log('Iniciando escaneo con node-nmap:', scanConfig);
+
+      // Configurar eventos de progreso
+      scanner.on('progress', (progress: any) => {
+        event.sender.send('scan-progress', progress.percentage);
+      });
+
+      scanner.on('host-discovered', (host: any) => {
+        console.log('Host descubierto:', host.ip);
+      });
+
       const results = await scanner.scanNetwork(
         scanConfig.baseIp,
         scanConfig.startRange,
         scanConfig.endRange,
         scanConfig.ports,
+        true, // usar nmap directamente
       );
+
+      console.log(`Escaneo completado. ${results.length} hosts encontrados.`);
       return results;
     } catch (error) {
       console.error('Error en el escaneo:', error);
