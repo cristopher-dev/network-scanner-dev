@@ -273,3 +273,30 @@
     background-position: -200% 0;
   }
 }
+
+.MuiLinearProgress-root {
+  position: relative;
+}
+
+.MuiLinearProgress-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+}
+
+@keyframes progressPulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.scanning-progress {
+  animation: progressPulse 1.5s ease-in-out infinite;
+}

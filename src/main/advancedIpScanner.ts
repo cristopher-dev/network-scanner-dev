@@ -1,4 +1,4 @@
-import Evilscan from 'evilscan';
+import { nodenmap } from 'node-nmap';
 import ping from 'ping';
 import dns from 'dns';
 import { promisify } from 'util';
@@ -36,7 +36,7 @@ class ScanError extends Error {
 }
 
 export class AdvancedIpScanner extends EventEmitter {
-  private lookup = promisify(dns.lookup);
+  private readonly lookup = promisify(dns.lookup);
   private isScanning = false;
   private scanTimeout = 2000; // timeout en ms
   // Método público para establecer el timeout
@@ -45,7 +45,7 @@ export class AdvancedIpScanner extends EventEmitter {
   }
   // Agregar manejo de cancelación
   private abortController = new AbortController();
-  private cache = new Map<
+  private readonly cache = new Map<
     string,
     {
       results: IScanResult[];
@@ -86,6 +86,7 @@ export class AdvancedIpScanner extends EventEmitter {
     startRange: number = 1,
     endRange: number = 254,
     ports: number[] = [20, 21, 22, 23, 25, 53, 80, 443, 445, 3389],
+    useNmapDirect: boolean = true, // New parameter to use nmap directly
   ): Promise<IScanResult[]> {
     // Agregar signal para cancelación
     if (this.abortController) {
@@ -117,27 +118,12 @@ export class AdvancedIpScanner extends EventEmitter {
     }
 
     this.isScanning = true;
-    const results: IScanResult[] = [];
-    const total = endRange - startRange + 1;
-    const batchSize = 10; // Número máximo de escaneos concurrentes
+    let results: IScanResult[] = [];
     this.startTime = Date.now();
     this.scannedIps = 0;
 
     try {
-      for (let i = startRange; i <= endRange; i += batchSize) {
-        const batch = [];
-        const end = Math.min(i + batchSize - 1, endRange);
-
-        for (let j = i; j <= end; j++) {
-          const ip = `${baseIp}.${j}`;
-          this.scannedIps++;
-          this.updateProgress(ip, total);
-          batch.push(this.scanHost(ip, ports));
-        }
-
-        const completedScans = await Promise.all(batch);
-        results.push(...completedScans.filter((scan): scan is IScanResult => scan !== null));
-      }
+      results = await this.executeNetworkScan(baseIp, startRange, endRange, ports, useNmapDirect);
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         console.log('Scan cancelled');
@@ -218,8 +204,35 @@ export class AdvancedIpScanner extends EventEmitter {
   }
 
   private async getMacAddress(ip: string): Promise<string | undefined> {
-    // Implementación pendiente - requiere acceso a nivel de sistema
-    return undefined;
+    try {
+      const scanner = nodenmap({
+        target: ip,
+        flags: ['-sn'], // Ping scan only to get MAC address
+        timeout: this.scanTimeout,
+      });
+
+      return new Promise((resolve) => {
+        scanner.scanComplete((error, result) => {
+          if (error || !result?.hosts || result.hosts.length === 0) {
+            resolve(undefined);
+            return;
+          }
+
+          const host = result.hosts[0];
+          resolve(host.mac || undefined);
+        });
+
+        scanner.scanTimeout(() => {
+          resolve(undefined);
+        });
+
+        scanner.startScan().catch(() => {
+          resolve(undefined);
+        });
+      });
+    } catch {
+      return undefined;
+    }
   }
 
   private async getVendorFromMac(mac?: string): Promise<string | undefined> {
@@ -229,35 +242,99 @@ export class AdvancedIpScanner extends EventEmitter {
   }
 
   private async scanPorts(ip: string, ports: number[]): Promise<number[]> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const openPorts: number[] = [];
-      const scanner = new Evilscan({
+
+      const scanner = nodenmap({
         target: ip,
-        port: ports.join(','),
+        ports: ports.join(','),
+        flags: ['-sS', '-O'], // SYN scan with OS detection
         timeout: this.scanTimeout,
-        status: 'TROU',
       });
 
-      scanner.on('result', (data: any) => {
-        if (data.status === 'open') {
-          openPorts.push(data.port);
+      scanner.scanComplete((error, result) => {
+        if (error) {
+          console.error(`Error scanning ports for ${ip}:`, error);
+          resolve([]); // Return empty array on error instead of rejecting
+          return;
         }
+
+        if (result?.hosts && result.hosts.length > 0) {
+          const host = result.hosts[0];
+          if (host?.openPorts) {
+            const foundPorts = host.openPorts.filter((p) => p.state === 'open').map((p) => p.port);
+            openPorts.push(...foundPorts);
+          }
+        }
+
+        resolve(openPorts);
       });
 
-      scanner.on('done', () => resolve(openPorts));
-      scanner.run();
+      scanner.scanTimeout(() => {
+        resolve(openPorts);
+      });
+
+      scanner.startScan().catch((error) => {
+        console.error(`Error starting scan for ${ip}:`, error);
+        resolve([]);
+      });
     });
   }
 
   private async detectOS(ip: string): Promise<string | undefined> {
     try {
-      const ttl = await this.getTTL(ip);
-      if (ttl === 128) return 'Windows';
-      if (ttl === 64) return 'Linux/Unix';
-      if (ttl === 254) return 'Solaris/AIX';
-      return undefined;
+      const scanner = nodenmap({
+        target: ip,
+        flags: ['-O', '--osscan-guess'], // OS detection with guessing
+        timeout: this.scanTimeout,
+      });
+
+      return new Promise((resolve) => {
+        scanner.scanComplete((error, result) => {
+          if (error || !result?.hosts || result.hosts.length === 0) {
+            // Fallback to TTL-based detection
+            this.getTTL(ip)
+              .then((ttl) => {
+                if (ttl === 128) resolve('Windows');
+                else if (ttl === 64) resolve('Linux/Unix');
+                else if (ttl === 254) resolve('Solaris/AIX');
+                else resolve(undefined);
+              })
+              .catch(() => resolve(undefined));
+            return;
+          }
+
+          const host = result.hosts[0];
+          resolve(host.osNmap || undefined);
+        });
+
+        scanner.scanTimeout(() => {
+          // Fallback to TTL method on timeout
+          this.getTTL(ip)
+            .then((ttl) => {
+              if (ttl === 128) resolve('Windows');
+              else if (ttl === 64) resolve('Linux/Unix');
+              else if (ttl === 254) resolve('Solaris/AIX');
+              else resolve(undefined);
+            })
+            .catch(() => resolve(undefined));
+        });
+
+        scanner.startScan().catch(() => {
+          resolve(undefined);
+        });
+      });
     } catch {
-      return undefined;
+      // Fallback to TTL-based detection
+      try {
+        const ttl = await this.getTTL(ip);
+        if (ttl === 128) return 'Windows';
+        if (ttl === 64) return 'Linux/Unix';
+        if (ttl === 254) return 'Solaris/AIX';
+        return undefined;
+      } catch {
+        return undefined;
+      }
     }
   }
 
@@ -266,7 +343,9 @@ export class AdvancedIpScanner extends EventEmitter {
       const result = await ping.promise.probe(ip, {
         timeout: this.scanTimeout / 1000,
       });
-      const ttl = parseInt(result.output.match(/ttl=(\d+)/i)?.[1] || '');
+      const ttlRegex = /ttl=(\d+)/i;
+      const match = ttlRegex.exec(result.output);
+      const ttl = parseInt(match?.[1] || '');
       return isNaN(ttl) ? undefined : ttl;
     } catch {
       return undefined;
@@ -304,11 +383,120 @@ export class AdvancedIpScanner extends EventEmitter {
     }));
   }
 
+  private processNmapHost(host: any): IScanResult {
+    const openPorts = host.openPorts?.filter((p: any) => p.state === 'open') || [];
+
+    return {
+      ip: host.ip,
+      status: host.status,
+      hostname: host.hostname,
+      mac: host.mac,
+      vendor: host.vendor,
+      os: host.osNmap,
+      ports: openPorts.map((p: any) => p.port),
+      services: openPorts.map((p: any) => ({
+        port: p.port,
+        name: p.service || 'Unknown',
+      })),
+      latency: undefined,
+    };
+  }
+
+  private async scanNetworkWithNmap(
+    baseIp: string,
+    startRange: number,
+    endRange: number,
+    ports: number[],
+  ): Promise<IScanResult[]> {
+    const range = `${baseIp}.${startRange}-${endRange}`;
+
+    return new Promise((resolve) => {
+      const scanner = nodenmap({
+        target: range,
+        ports: ports.join(','),
+        flags: ['-sS', '-O', '-A'],
+        timeout: this.scanTimeout * 2,
+      });
+
+      scanner.scanComplete((error, result) => {
+        if (error || !result?.hosts) {
+          console.error('Error in network scan:', error);
+          resolve([]);
+          return;
+        }
+
+        const results: IScanResult[] = result.hosts.map((host) => this.processNmapHost(host));
+        resolve(results);
+      });
+
+      scanner.scanTimeout(() => {
+        console.warn('Network scan timed out');
+        resolve([]);
+      });
+
+      scanner.startScan().catch((error) => {
+        console.error('Error starting network scan:', error);
+        resolve([]);
+      });
+    });
+  }
+
   // Agregar método para cancelar escaneo
   cancelScan() {
     if (this.abortController) {
       this.abortController.abort();
     }
+  }
+
+  private async executeNetworkScan(
+    baseIp: string,
+    startRange: number,
+    endRange: number,
+    ports: number[],
+    useNmapDirect: boolean,
+  ): Promise<IScanResult[]> {
+    const total = endRange - startRange + 1;
+    let results: IScanResult[] = [];
+
+    if (useNmapDirect && total <= 50) {
+      console.log('Using nmap direct network scan...');
+      results = await this.scanNetworkWithNmap(baseIp, startRange, endRange, ports);
+      this.scannedIps = total;
+      this.updateProgress(`${baseIp}.${endRange}`, total);
+    } else {
+      console.log('Using individual host scanning...');
+      results = await this.scanIndividualHosts(baseIp, startRange, endRange, ports);
+    }
+
+    return results;
+  }
+
+  private async scanIndividualHosts(
+    baseIp: string,
+    startRange: number,
+    endRange: number,
+    ports: number[],
+  ): Promise<IScanResult[]> {
+    const results: IScanResult[] = [];
+    const total = endRange - startRange + 1;
+    const batchSize = 10;
+
+    for (let i = startRange; i <= endRange; i += batchSize) {
+      const batch = [];
+      const end = Math.min(i + batchSize - 1, endRange);
+
+      for (let j = i; j <= end; j++) {
+        const ip = `${baseIp}.${j}`;
+        this.scannedIps++;
+        this.updateProgress(ip, total);
+        batch.push(this.scanHost(ip, ports));
+      }
+
+      const completedScans = await Promise.all(batch);
+      results.push(...completedScans.filter((scan): scan is IScanResult => scan !== null));
+    }
+
+    return results;
   }
 
   private updateProgress(ip: string, total: number): void {

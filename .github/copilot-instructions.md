@@ -1,0 +1,6 @@
+- Do not include examples.
+- Do not include \*.md files.
+- Do not include README files.
+- Do not explain the generated code.
+- Do not include the phrase "I don't want" in the file.
+- Generate only clear and concise instructions.

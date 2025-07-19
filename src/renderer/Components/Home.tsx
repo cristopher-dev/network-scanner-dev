@@ -97,8 +97,8 @@ const Home: React.FC = () => {
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': {
               transform: 'translateY(-4px)',
-              boxShadow: darkMode 
-                ? '0 8px 16px rgba(0,0,0,0.3)' 
+              boxShadow: darkMode
+                ? '0 8px 16px rgba(0,0,0,0.3)'
                 : '0 8px 16px rgba(0,0,0,0.1)',
             },
           },
@@ -230,13 +230,27 @@ const Home: React.FC = () => {
             scanning={scanning}
           />
           {scanning && (
-            <Box sx={{ width: '100%', mb: 2 }}>
+            <Box
+              sx={{
+                width: '100%',
+                mb: 2,
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+            >
               <LinearProgress
-                variant="determinate"
+                variant={progress === 0 ? "indeterminate" : "determinate"}
                 value={progress}
                 sx={{
-                  height: 10,
-                  borderRadius: 5,
+                  height: 8,
+                  borderRadius: 4,
+                  '& .MuiLinearProgress-bar': {
+                    backgroundImage: 'linear-gradient(45deg, rgba(59, 130, 246, 0.8) 30%, rgba(244, 114, 182, 0.8) 90%)',
+                    transition: 'transform 0.4s linear',
+                  },
+                  backgroundColor: theme.palette.mode === 'dark'
+                    ? 'rgba(255, 255, 255, 0.08)'
+                    : 'rgba(0, 0, 0, 0.08)',
                 }}
               />
             </Box>
