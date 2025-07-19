@@ -8,15 +8,21 @@ const execAsync = promisify(exec);
 async function runSystemDiagnostics() {
   console.log('🔍 Ejecutando diagnósticos del sistema...\n');
 
-  // 1. Verificar nmap
-  console.log('1. Verificando instalación de nmap...');
+  // 1. Verificar librerías NPM
+  console.log('1. Verificando librerías NPM...');
   try {
-    const { stdout } = await execAsync('nmap --version');
-    console.log('✅ nmap está instalado:');
-    console.log(stdout.split('\n')[0]);
+    const ping = await import('ping');
+    const dns = await import('dns');
+    const net = await import('net');
+    if (ping && dns && net) {
+      console.log('✅ Librerías NPM están disponibles');
+      console.log('   - ping: ✅');
+      console.log('   - dns: ✅');
+      console.log('   - net: ✅');
+    }
   } catch (error) {
-    console.log('❌ nmap NO está instalado o no está en el PATH');
-    console.log('   Solución: Ejecute setup-nmap.bat como administrador');
+    console.log('❌ Algunas librerías NPM NO están disponibles');
+    console.log('   Error:', error);
   }
 
   // 2. Verificar conectividad de red
@@ -30,7 +36,10 @@ async function runSystemDiagnostics() {
       console.log('❌ Sin conectividad a internet');
     }
   } catch (error) {
-    console.log('❌ Error al verificar conectividad');
+    console.log(
+      '❌ Error al verificar conectividad:',
+      error instanceof Error ? error.message : 'Error desconocido',
+    );
   }
 
   // 3. Verificar interfaces de red
@@ -58,7 +67,10 @@ async function runSystemDiagnostics() {
       console.log('✅ Puerto 3000 está disponible');
     }
   } catch (error) {
-    console.log('✅ Puerto 3000 está disponible');
+    console.log(
+      '✅ Puerto 3000 está disponible (error al verificar):',
+      error instanceof Error ? error.message : 'Error desconocido',
+    );
   }
 
   console.log('\n🔧 Diagnósticos completados.');

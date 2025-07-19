@@ -10,7 +10,7 @@ declare global {
           | 'store-save'
           | 'store-load'
           | 'run-diagnostics'
-          | 'get-nmap-instructions'
+          | 'get-setup-instructions'
           | 'get-available-networks'
           | 'detect-current-network'
           | 'get'

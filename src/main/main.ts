@@ -3,7 +3,7 @@ import { autoUpdater } from 'electron-updater';
 import { isDebug, getAssetsPath, getHtmlPath, getPreloadPath, installExtensions } from './utils';
 import { createMenu } from './menu';
 import './updater';
-import AdvancedIpScanner from './advancedIpScanner';
+import PureNpmScanner from './pureNpmScanner';
 import { BasicNetworkScanner } from './basicScanner';
 import { SystemDiagnostics } from './diagnostics';
 import { NetworkDetector } from './networkDetector';
@@ -123,9 +123,8 @@ const setupIpc = (): void => {
   }
 
   // Crear instancias de los scanners
-  const scanner = new AdvancedIpScanner();
+  const scanner = new PureNpmScanner();
   const basicScanner = new BasicNetworkScanner();
-
   ipcMain.on('message', (event) => {
     try {
       event.reply('reply', 'Ipc Example: pong 🏓');
@@ -144,11 +143,11 @@ const setupIpc = (): void => {
     try {
       console.log('Iniciando escaneo con configuración:', scanConfig);
 
-      // Verificar si nmap está disponible
-      const nmapAvailable = await SystemDiagnostics.checkNmapInstallation();
+      // Usar el scanner puro NPM (sin dependencia de nmap)
+      const librariesAvailable = await SystemDiagnostics.checkNetworkLibraries();
 
-      if (!nmapAvailable) {
-        console.warn('nmap no está disponible, usando scanner básico');
+      if (!librariesAvailable) {
+        console.warn('Algunas librerías de red no están disponibles, usando scanner básico');
 
         // Configurar eventos de progreso para el scanner básico
         basicScanner.on('progress', (progress: any) => {
@@ -166,8 +165,6 @@ const setupIpc = (): void => {
         console.log(`Escaneo básico completado. ${results.length} hosts encontrados.`);
         return results;
       }
-
-      // Usar el scanner avanzado con nmap
       scanner.on('progress', (progress: any) => {
         event.sender.send(
           'scan-progress',
@@ -184,15 +181,14 @@ const setupIpc = (): void => {
         scanConfig.startRange,
         scanConfig.endRange,
         scanConfig.ports,
-        true, // usar nmap directamente
       );
 
-      console.log(`Escaneo avanzado completado. ${results.length} hosts encontrados.`);
+      console.log(`Escaneo completado. ${results.length} hosts encontrados.`);
       return results;
     } catch (error) {
       console.error('Error en el escaneo:', error);
 
-      // En caso de error con el scanner avanzado, intentar con el básico
+      // En caso de error con el scanner principal, intentar con el básico
       try {
         console.log('Intentando con el scanner básico como fallback...');
 
@@ -274,8 +270,8 @@ const setupIpc = (): void => {
     }
   });
 
-  // Obtener instrucciones de instalación de nmap
-  ipcMain.handle('get-nmap-instructions', () => {
+  // Obtener instrucciones de instalación
+  ipcMain.handle('get-setup-instructions', () => {
     return SystemDiagnostics.getInstallationInstructions();
   });
 

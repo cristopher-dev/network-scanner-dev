@@ -29,8 +29,8 @@ import {
 } from '@mui/icons-material';
 
 interface DiagnosticResult {
-  nmapInstalled: boolean;
-  nmapVersion?: string;
+  npmLibrariesAvailable: boolean;
+  libraryVersions?: string[];
   pingTest: boolean;
   systemInfo: {
     platform: string;
@@ -57,7 +57,7 @@ const SystemDiagnostics: React.FC<SystemDiagnosticsProps> = ({ open, onClose }) 
       setDiagnostics(result);
 
       if (!result.nmapInstalled) {
-        const instructions = await window.ipc.invoke('get-nmap-instructions');
+        const instructions = await window.ipc.invoke('get-setup-instructions');
         setNmapInstructions(instructions);
       }
     } catch (error) {
@@ -113,14 +113,14 @@ const SystemDiagnostics: React.FC<SystemDiagnosticsProps> = ({ open, onClose }) 
               </Alert>
             )}
 
-            {!diagnostics.nmapInstalled && (
+            {!diagnostics.npmLibrariesAvailable && (
               <Alert severity="warning" sx={{ mb: 2 }}>
                 <Typography variant="subtitle2" gutterBottom>
-                  ⚠️ nmap no está instalado
+                  ⚠️ Algunas librerías NPM no están disponibles
                 </Typography>
                 <Typography variant="body2">
-                  La aplicación funcionará con capacidades limitadas. Para obtener todas las
-                  funcionalidades, instale nmap siguiendo las instrucciones a continuación.
+                  La aplicación funcionará con capacidades limitadas. Verifica la instalación de las
+                  dependencias siguiendo las instrucciones a continuación.
                 </Typography>
               </Alert>
             )}
@@ -132,18 +132,18 @@ const SystemDiagnostics: React.FC<SystemDiagnosticsProps> = ({ open, onClose }) 
 
               <List dense>
                 <ListItem>
-                  <ListItemIcon>{getStatusIcon(diagnostics.nmapInstalled)}</ListItemIcon>
+                  <ListItemIcon>{getStatusIcon(diagnostics.npmLibrariesAvailable)}</ListItemIcon>
                   <ListItemText
-                    primary="nmap"
+                    primary="Librerías NPM"
                     secondary={
-                      diagnostics.nmapInstalled
-                        ? `Versión: ${diagnostics.nmapVersion}`
-                        : 'No instalado - usando scanner básico'
+                      diagnostics.npmLibrariesAvailable
+                        ? `Disponibles: ${diagnostics.libraryVersions?.join(', ')}`
+                        : 'Algunas librerías no están disponibles'
                     }
                   />
                   {getStatusChip(
-                    diagnostics.nmapInstalled,
-                    diagnostics.nmapInstalled ? 'Disponible' : 'No disponible',
+                    diagnostics.npmLibrariesAvailable,
+                    diagnostics.npmLibrariesAvailable ? 'Disponible' : 'No disponible',
                   )}
                 </ListItem>
 
@@ -191,12 +191,12 @@ const SystemDiagnostics: React.FC<SystemDiagnosticsProps> = ({ open, onClose }) 
               </AccordionDetails>
             </Accordion>
 
-            {!diagnostics.nmapInstalled && nmapInstructions && (
+            {!diagnostics.npmLibrariesAvailable && nmapInstructions && (
               <Accordion>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                   <Typography variant="subtitle1">
                     <WarningIcon sx={{ mr: 1, verticalAlign: 'bottom' }} />
-                    Instrucciones de Instalación de nmap
+                    Instrucciones de Configuración
                   </Typography>
                 </AccordionSummary>
                 <AccordionDetails>

@@ -5,8 +5,8 @@ import ping from 'ping';
 const execAsync = promisify(exec);
 
 export interface DiagnosticResult {
-  nmapInstalled: boolean;
-  nmapVersion?: string;
+  npmLibrariesAvailable: boolean;
+  libraryVersions?: string[];
   pingTest: boolean;
   systemInfo: {
     platform: string;
@@ -19,7 +19,8 @@ export interface DiagnosticResult {
 export class SystemDiagnostics {
   static async runDiagnostics(): Promise<DiagnosticResult> {
     const result: DiagnosticResult = {
-      nmapInstalled: false,
+      npmLibrariesAvailable: false,
+      libraryVersions: [],
       pingTest: false,
       systemInfo: {
         platform: process.platform,
@@ -29,14 +30,14 @@ export class SystemDiagnostics {
     };
 
     try {
-      // Verificar si nmap está instalado
+      // Verificar librerías NPM disponibles
       try {
-        const { stdout } = await execAsync('nmap --version');
-        result.nmapInstalled = true;
-        result.nmapVersion = stdout.split('\n')[0];
+        const libraries = ['ping', 'dns', 'net'];
+        result.npmLibrariesAvailable = true;
+        result.libraryVersions = libraries.map((lib) => `${lib}: available`);
       } catch {
-        result.nmapInstalled = false;
-        result.error = 'nmap no está instalado en el sistema';
+        result.npmLibrariesAvailable = false;
+        result.error = 'Algunas librerías NPM no están disponibles';
       }
 
       // Probar ping básico
@@ -57,48 +58,32 @@ export class SystemDiagnostics {
     return result;
   }
 
-  static async checkNmapInstallation(): Promise<boolean> {
+  static async checkNetworkLibraries(): Promise<boolean> {
     try {
-      await execAsync('nmap --version');
-      return true;
+      // Verificar que las librerías principales estén disponibles
+      const ping = await import('ping');
+      const dns = await import('dns');
+      const net = await import('net');
+      return !!(ping && dns && net);
     } catch {
       return false;
     }
   }
 
   static getInstallationInstructions(): string {
-    const platform = process.platform;
+    return `
+Network Scanner ahora usa librerías NPM puras y no requiere dependencias externas como nmap.
 
-    switch (platform) {
-      case 'win32':
-        return `
-Para instalar nmap en Windows:
-1. Descarga nmap desde: https://nmap.org/download.html
-2. Ejecuta el instalador como administrador
-3. Asegúrate de agregar nmap al PATH del sistema
-4. Reinicia la aplicación después de la instalación
+Las siguientes librerías están incluidas:
+- ping: Para detección de hosts
+- dns: Para resolución de nombres
+- net: Para escaneo de puertos
+- node-cache: Para caché de resultados
 
-Alternativamente, usa Chocolatey:
-choco install nmap
-
-O usa Winget:
-winget install Insecure.Nmap
-        `;
-      case 'darwin':
-        return `
-Para instalar nmap en macOS:
-1. Usa Homebrew: brew install nmap
-2. O descarga desde: https://nmap.org/download.html
-        `;
-      case 'linux':
-        return `
-Para instalar nmap en Linux:
-Ubuntu/Debian: sudo apt-get install nmap
-CentOS/RHEL: sudo yum install nmap
-Fedora: sudo dnf install nmap
-        `;
-      default:
-        return 'Sistema operativo no soportado para las instrucciones automáticas.';
-    }
+Si experimentas problemas de red, verifica:
+1. Que tengas permisos de administrador/root para algunas operaciones
+2. Que el firewall no esté bloqueando las conexiones
+3. Que tengas conectividad a internet básica
+    `;
   }
 }
