@@ -3,8 +3,6 @@ import { Box, Grid, Paper, Typography } from '@mui/material';
 import { LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import NetworkTopology from './NetworkTopology';
 import RealTimeMetrics from './RealTimeMetrics';
-import AlertsPanel from './AlertsPanel';
-import DeviceGrouping from './DeviceGrouping';
 import NetworkStats from './NetworkStats';
 
 const fetchNetworkMetrics = async (): Promise<NetworkMetrics> => {
@@ -46,8 +44,6 @@ const NetworkDashboard: React.FC = () => {
     <Box className="dashboard-container">
       <NetworkTopology />
       <RealTimeMetrics />
-      <AlertsPanel />
-      <DeviceGrouping />
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
           <Paper className="chart-container">
