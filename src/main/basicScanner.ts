@@ -3,17 +3,12 @@ import { EventEmitter } from 'events';
 import net from 'net';
 import dns from 'dns';
 import { promisify } from 'util';
+import { HostnameResolver } from './hostnameResolver';
+import { ScanResult } from '../shared/types';
 
 const lookup = promisify(dns.lookup);
 
-export interface BasicScanResult {
-  ip: string;
-  status: 'up' | 'down';
-  hostname?: string;
-  latency?: number;
-  ports?: number[];
-  timestamp: number;
-}
+export type { ScanResult as BasicScanResult };
 
 export class BasicNetworkScanner extends EventEmitter {
   private isScanning = false;
@@ -25,7 +20,7 @@ export class BasicNetworkScanner extends EventEmitter {
     endRange: number,
     ports: number[] = [80, 443, 22, 21, 25, 53],
     timeout: number = 2000,
-  ): Promise<BasicScanResult[]> {
+  ): Promise<ScanResult[]> {
     if (this.isScanning) {
       throw new Error('Ya hay un escaneo en progreso');
     }
@@ -33,12 +28,12 @@ export class BasicNetworkScanner extends EventEmitter {
     this.isScanning = true;
     this.abortController = new AbortController();
 
-    const results: BasicScanResult[] = [];
+    const results: ScanResult[] = [];
     const total = endRange - startRange + 1;
     let completed = 0;
 
     try {
-      const promises: Promise<BasicScanResult | null>[] = [];
+      const promises: Promise<ScanResult | null>[] = [];
 
       for (let i = startRange; i <= endRange; i++) {
         const ip = `${baseIp}.${i}`;
@@ -70,11 +65,7 @@ export class BasicNetworkScanner extends EventEmitter {
     }
   }
 
-  private async scanHost(
-    ip: string,
-    ports: number[],
-    timeout: number,
-  ): Promise<BasicScanResult | null> {
+  private async scanHost(ip: string, ports: number[], timeout: number): Promise<ScanResult | null> {
     try {
       // Hacer ping primero
       const pingResult = await ping.promise.probe(ip, { timeout: timeout / 1000 });
@@ -83,19 +74,27 @@ export class BasicNetworkScanner extends EventEmitter {
         return null;
       }
 
-      const result: BasicScanResult = {
+      const result: ScanResult = {
         ip,
         status: 'up',
         latency: typeof pingResult.time === 'number' ? pingResult.time : undefined,
         timestamp: Date.now(),
       };
 
-      // Intentar resolver hostname
+      // Intentar resolver hostname y obtener información del dispositivo
       try {
-        const resolved = await lookup(ip);
-        result.hostname = resolved.address !== ip ? resolved.address : undefined;
+        const deviceInfo = await HostnameResolver.resolveHostname(ip);
+        result.hostname = deviceInfo.hostname;
+        result.deviceName = deviceInfo.description;
+        result.vendor = deviceInfo.vendor;
       } catch {
-        // Ignorar errores de resolución DNS
+        // Intentar resolución DNS básica como fallback
+        try {
+          const resolved = await lookup(ip);
+          result.hostname = resolved.address !== ip ? resolved.address : undefined;
+        } catch {
+          // Ignorar errores de resolución DNS
+        }
       }
 
       // Escanear puertos básico

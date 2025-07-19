@@ -11,13 +11,10 @@ import {
   ListItemText,
 } from '@mui/material';
 import { DataGrid, GridColDef, GridRowParams } from '@mui/x-data-grid';
+import { ScanResult } from '../../shared/types';
 
-interface DeviceInfo {
-  ip: string;
-  hostname?: string;
+interface DeviceInfo extends ScanResult {
   os?: string;
-  status: string;
-  ports?: number[];
 }
 
 interface ScanHistoryEntry {
@@ -64,6 +61,8 @@ export const DeviceDetailsModal = ({
           {tabValue === 0 && (
             <Box>
               <Typography>Hostname: {device.hostname || 'N/A'}</Typography>
+              <Typography>Nombre del Dispositivo: {device.deviceName || 'Desconocido'}</Typography>
+              <Typography>Fabricante: {device.vendor || 'Desconocido'}</Typography>
               <Typography>Sistema Operativo: {device.os || 'Desconocido'}</Typography>
               <Typography>Estado: {device.status}</Typography>
             </Box>
@@ -79,8 +78,8 @@ export const DeviceDetailsModal = ({
                 Historial de actividad
               </Typography>
               <List>
-                {history.map((entry, index) => (
-                  <ListItem key={index} divider>
+                {history.map((entry) => (
+                  <ListItem key={entry.timestamp} divider>
                     <ListItemText
                       primary={`Escaneado: ${entry.timestamp}`}
                       secondary={
@@ -116,9 +115,14 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ scanResults }) => {
 
   const columns: GridColDef[] = [
     { field: 'ip', headerName: 'IP', flex: 1 },
-    { field: 'hostname', headerName: 'Hostname', flex: 1 },
+    {
+      field: 'deviceName',
+      headerName: 'Dispositivo',
+      flex: 1,
+      renderCell: (params) => params.value || params.row.hostname || 'Desconocido',
+    },
+    { field: 'vendor', headerName: 'Fabricante', flex: 1 },
     { field: 'status', headerName: 'Estado', flex: 1 },
-    { field: 'os', headerName: 'Sistema Operativo', flex: 1 },
   ];
 
   const handleDeviceClick = (device: DeviceInfo) => {
