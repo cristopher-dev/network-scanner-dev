@@ -1,12 +1,26 @@
 /**
- * Utilidades para la configuración y validación de red
+ * Utilidades para la configuración y validación de red - Versión mejorada
  */
 import * as ipaddr from 'ipaddr.js';
+import { Netmask } from 'netmask';
 
+// Interfaces para mejor tipado
 export interface NetworkValidationResult {
   isValid: boolean;
   errors: string[];
   warnings: string[];
+  suggestions?: string[];
+  estimatedTime?: number;
+}
+
+export interface ScanConfiguration {
+  baseIp: string;
+  startRange: number;
+  endRange: number;
+  ports: number[];
+  timeout: number;
+  batchSize: number;
+  maxConcurrency?: number;
 }
 
 export class NetworkUtils {

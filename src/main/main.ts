@@ -7,6 +7,9 @@ import PureNpmScanner from './pureNpmScanner';
 import { BasicNetworkScanner } from './basicScanner';
 import { SystemDiagnostics } from './diagnostics';
 import { NetworkDetector } from './networkDetector';
+import { ModernNetworkScanner } from './modernNetworkScanner';
+import { ModernNetworkDetector } from './modernNetworkDetector';
+import { ModernHostnameResolver } from './modernHostnameResolver';
 import Store from 'electron-store';
 import log from 'electron-log';
 
@@ -122,9 +125,11 @@ const setupIpc = (): void => {
     return;
   }
 
-  // Crear instancias de los scanners
+  // Crear instancias de los scanners (mantenemos compatibilidad hacia atrás)
   const scanner = new PureNpmScanner();
   const basicScanner = new BasicNetworkScanner();
+  const modernScanner = new ModernNetworkScanner();
+
   ipcMain.on('message', (event) => {
     try {
       event.reply('reply', 'Ipc Example: pong 🏓');
@@ -213,11 +218,28 @@ const setupIpc = (): void => {
     }
   });
 
-  // Manejador para obtener redes disponibles
+  // Manejador para obtener redes disponibles (mejorado)
   ipcMain.handle('get-available-networks', async () => {
     try {
+      // Usar el detector moderno si está disponible
+      const modernNetworks = await ModernNetworkDetector.detectAllNetworkInterfaces();
+      if (modernNetworks.length > 0) {
+        log.info(`Redes detectadas con detector moderno: ${modernNetworks.length}`);
+        return modernNetworks.map((net) => ({
+          name: net.interface,
+          type: net.type,
+          baseIp: net.baseIp,
+          gateway: net.gateway,
+          isActive: true,
+          address: net.address,
+          netmask: net.netmask,
+          speed: net.speed,
+        }));
+      }
+
+      // Fallback al detector original
       const networks = await NetworkDetector.getAllNetworksWithGateway();
-      log.info(`Redes disponibles encontradas: ${networks.length}`);
+      log.info(`Redes disponibles encontradas (fallback): ${networks.length}`);
       return networks;
     } catch (error) {
       log.error('Error obteniendo redes disponibles:', error);
@@ -225,9 +247,28 @@ const setupIpc = (): void => {
     }
   });
 
-  // Manejador para detectar la red actual automáticamente
+  // Manejador para detectar la red actual automáticamente (mejorado)
   ipcMain.handle('detect-current-network', async () => {
     try {
+      // Usar detector moderno primero
+      const modernNetwork = await ModernNetworkDetector.detectPrimaryNetworkInterface();
+      if (modernNetwork) {
+        const scanRange = ModernNetworkDetector.calculateOptimalScanRange(
+          modernNetwork.address,
+          modernNetwork.netmask,
+        );
+        const result = {
+          ...modernNetwork,
+          startRange: scanRange.start,
+          endRange: scanRange.end,
+          totalHosts: scanRange.totalHosts,
+          recommendation: scanRange.recommendation,
+        };
+        log.info('Red detectada con detector moderno:', result);
+        return result;
+      }
+
+      // Fallback al detector original
       const networkInfo = await NetworkDetector.detectLocalNetworkWithGateway();
       if (networkInfo) {
         const scanRange = NetworkDetector.calculateScanRange(
@@ -239,9 +280,11 @@ const setupIpc = (): void => {
           startRange: scanRange.start,
           endRange: scanRange.end,
         };
-        log.info('Red actual detectada:', result);
+        log.info('Red detectada con detector original:', result);
         return result;
       }
+
+      log.warn('No se pudo detectar ninguna red automáticamente');
       return null;
     } catch (error) {
       log.error('Error detectando red actual:', error);
@@ -273,6 +316,99 @@ const setupIpc = (): void => {
   // Obtener instrucciones de instalación
   ipcMain.handle('get-setup-instructions', () => {
     return SystemDiagnostics.getInstallationInstructions();
+  });
+
+  // Nuevos manejadores para funcionalidades modernas
+
+  // Manejador para el scanner moderno
+  ipcMain.handle('modern-scan-network', async (event, scanConfig) => {
+    try {
+      console.log('Iniciando escaneo moderno con configuración:', scanConfig);
+
+      // Configurar eventos de progreso
+      modernScanner.on('progress', (progress: any) => {
+        event.sender.send('scan-progress', progress.percentage);
+      });
+
+      modernScanner.on('host-discovered', (host: any) => {
+        event.sender.send('host-discovered', host);
+      });
+
+      const modernConfig = {
+        baseIp: scanConfig.baseIp,
+        startRange: scanConfig.startRange,
+        endRange: scanConfig.endRange,
+        ports: scanConfig.ports || [22, 80, 443],
+        timeout: scanConfig.timeout || 2000,
+        maxConcurrency: scanConfig.maxConcurrency || 15,
+        enableOsDetection: scanConfig.enableOsDetection || false,
+        enableServiceDetection: scanConfig.enableServiceDetection || true,
+      };
+
+      const results = await modernScanner.scanNetwork(modernConfig);
+      console.log(`Escaneo moderno completado. ${results.length} hosts encontrados.`);
+      return results;
+    } catch (error) {
+      console.error('Error en el escaneo moderno:', error);
+      throw error;
+    }
+  });
+
+  // Manejador para resolver información de dispositivos
+  ipcMain.handle('resolve-device-info', async (_event, ip: string) => {
+    try {
+      const deviceInfo = await ModernHostnameResolver.resolveDeviceInfo(ip);
+      return deviceInfo;
+    } catch (error) {
+      log.error(`Error resolviendo información de ${ip}:`, error);
+      return {
+        ip,
+        confidence: 0,
+        sources: [],
+      };
+    }
+  });
+
+  // Manejador para estadísticas de red
+  ipcMain.handle('get-network-statistics', async () => {
+    try {
+      const stats = await ModernNetworkDetector.getNetworkStatistics();
+      return stats;
+    } catch (error) {
+      log.error('Error obteniendo estadísticas de red:', error);
+      return { interfaces: [] };
+    }
+  });
+
+  // Manejador para validar configuración de red
+  ipcMain.handle('validate-network-config', async (_event, config) => {
+    try {
+      const validation = await ModernNetworkDetector.validateNetworkConfig(config);
+      return validation;
+    } catch (error) {
+      log.error('Error validando configuración de red:', error);
+      return {
+        isValid: false,
+        warnings: ['Error validando configuración'],
+        suggestions: [],
+      };
+    }
+  });
+
+  // Manejador para limpiar cachés
+  ipcMain.handle('clear-caches', async () => {
+    try {
+      ModernHostnameResolver.clearCache();
+      modernScanner.clearCache();
+      log.info('Cachés limpiados exitosamente');
+      return { success: true };
+    } catch (error) {
+      log.error('Error limpiando cachés:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Error desconocido',
+      };
+    }
   });
 
   ipcMain.handle('store-load', async () => {
