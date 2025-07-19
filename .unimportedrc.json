@@ -1,0 +1,47 @@
+{
+  "entry": ["src/main/main.ts", "src/renderer/index.tsx", "src/preload.ts"],
+  "extensions": [".ts", ".tsx", ".js", ".jsx"],
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/app/**",
+    "**/*.d.ts",
+    "**/configs/**",
+    "**/scripts/**",
+    "**/assets/**"
+  ],
+  "ignoreUnresolved": ["electron", "react", "react-dom", "node:*"],
+  "ignoreUnimported": [
+    "src/main/nmap.d.ts",
+    "src/renderer/preload.d.ts",
+    "assets/assets.d.ts",
+    "src/main/preload.ts"
+  ],
+  "ignoreUnused": [
+    "@types/node",
+    "@types/react",
+    "@types/react-dom",
+    "typescript",
+    "electron",
+    "electron-builder",
+    "webpack",
+    "webpack-cli",
+    "webpack-dev-server",
+    "@pmmmwh/react-refresh-webpack-plugin",
+    "css-minimizer-webpack-plugin",
+    "html-webpack-plugin",
+    "mini-css-extract-plugin",
+    "terser-webpack-plugin",
+    "tsconfig-paths-webpack-plugin",
+    "ts-loader",
+    "css-loader",
+    "sass-loader",
+    "style-loader",
+    "file-loader",
+    "sass",
+    "detect-port",
+    "chalk",
+    "rimraf"
+  ]
+}

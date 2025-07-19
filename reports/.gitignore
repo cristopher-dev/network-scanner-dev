@@ -1,0 +1,7 @@
+# Reportes de análisis de archivos no utilizados
+*.json
+*.txt
+*.csv
+
+# Mantener solo el directorio
+!.gitkeep
