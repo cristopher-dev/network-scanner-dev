@@ -30,6 +30,8 @@ Use async/await for asynchronous operations.
 
 Maintain separation of concerns between UI components, business logic, and data access layers.
 
+Make sure you always respond with the shortest code possible.
+
 - Do not include examples.
 - Do not include \*.md files.
 - Do not include README files.

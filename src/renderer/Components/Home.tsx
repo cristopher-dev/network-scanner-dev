@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { ScanResult } from '../../shared/types';
 import {
   ThemeProvider,
   createTheme,
@@ -28,22 +29,16 @@ import ResultsGrid from './ResultsGrid';
 import ConfigDrawer from './ConfigDrawer';
 import FilterMenu from './FilterMenu';
 import SystemDiagnostics from './SystemDiagnostics';
-import NetworkConfig from './NetworkConfig';
+import NetworkConfigComponent from './NetworkConfig';
 import './Home.css';
 
-interface ScanConfig {
+interface Config {
   timeout: number;
   batchSize: number;
   ports: number[];
   baseIp: string;
   startRange: number;
   endRange: number;
-}
-
-interface ScanResult {
-  ip: string;
-  status: 'up' | 'down';
-  ports?: number[]; // Cambiado de array de objetos a array de números
 }
 
 const Home: React.FC = () => {
@@ -56,7 +51,7 @@ const Home: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [config, setConfig] = useState<ScanConfig>({
+  const [config, setConfig] = useState<Config>({
     timeout: 2000,
     batchSize: 10,
     ports: [20, 21, 22, 23, 25, 53, 80, 443, 445, 3389, 8080],
@@ -151,7 +146,7 @@ const Home: React.FC = () => {
     try {
       const networkInfo = await window.ipc.invoke('detect-current-network');
       if (networkInfo) {
-        setConfig((prev) => ({
+        setConfig((prev: Config) => ({
           ...prev,
           baseIp: networkInfo.baseIp,
           startRange: networkInfo.startRange,
@@ -179,7 +174,7 @@ const Home: React.FC = () => {
         // Cargar configuración guardada usando el método directo
         const savedConfig = window.ipc.get('scanConfig');
         if (savedConfig) {
-          setConfig((prevConfig) => ({ ...prevConfig, ...savedConfig }));
+          setConfig((prevConfig: Config) => ({ ...prevConfig, ...savedConfig }));
         } else {
           // Si no hay configuración guardada, detectar automáticamente
           await detectCurrentNetwork();
@@ -318,7 +313,7 @@ const Home: React.FC = () => {
               />
             </Box>
           )}
-          <NetworkConfig
+          <NetworkConfigComponent
             config={config}
             setConfig={setConfig}
             availableNetworks={availableNetworks}

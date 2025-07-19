@@ -1,17 +1,6 @@
-import { app, Menu, shell, MenuItemConstructorOptions } from 'electron';
+import { app, Menu, shell } from 'electron';
 
-// URLs constantes
-const URLS = {
-  GITHUB_PROFILE: 'https://github.com/AjayKanniyappan',
-  REPO_URL: 'https://github.com/AjayKanniyappan/react-electron-template',
-  DOCS_URL: 'https://github.com/AjayKanniyappan/react-electron-template#readme',
-} as const;
-
-// Funciones auxiliares
-const openExternal = (url: string) => () => shell.openExternal(url);
-
-// Definición de menús
-const menuTemplate: MenuItemConstructorOptions[] = [
+const menu = [
   {
     label: 'Archivo',
     submenu: [
@@ -25,10 +14,7 @@ const menuTemplate: MenuItemConstructorOptions[] = [
   {
     label: 'Acerca de',
     submenu: [
-      {
-        label: 'Más',
-        click: openExternal(URLS.GITHUB_PROFILE),
-      },
+      { label: 'Más', click: () => shell.openExternal('https://github.com/AjayKanniyappan') },
     ],
   },
   {
@@ -36,18 +22,19 @@ const menuTemplate: MenuItemConstructorOptions[] = [
     submenu: [
       {
         label: 'Aprende Más',
-        click: openExternal(URLS.REPO_URL),
+        click: () =>
+          shell.openExternal('https://github.com/AjayKanniyappan/react-electron-template'),
       },
       {
         label: 'Documentación',
         accelerator: 'F1',
-        click: openExternal(URLS.DOCS_URL),
+        click: () =>
+          shell.openExternal('https://github.com/AjayKanniyappan/react-electron-template#readme'),
       },
     ],
   },
 ];
 
-// Exportar una función que crea el menú
-export function createMenu(): Menu {
-  return Menu.buildFromTemplate(menuTemplate);
+export function createMenu() {
+  return Menu.buildFromTemplate(menu);
 }

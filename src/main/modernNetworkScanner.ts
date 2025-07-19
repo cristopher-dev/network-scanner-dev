@@ -8,45 +8,18 @@ import log from 'electron-log';
 import systeminformation from 'systeminformation';
 import { Netmask } from 'netmask';
 import * as ipaddr from 'ipaddr.js';
-import { ScanResult } from '../shared/types';
+
+import {
+  ScanResult,
+  ModernScanConfig,
+  ExtendedScanResult,
+  NetworkInterface,
+} from '../shared/types';
 
 const lookup = promisify(dns.lookup);
 const reverseLookup = promisify(dns.reverse);
 
-interface ModernScanConfig {
-  baseIp: string;
-  startRange: number;
-  endRange: number;
-  ports: number[];
-  timeout: number;
-  maxConcurrency: number;
-  enableOsDetection: boolean;
-  enableServiceDetection: boolean;
-}
-
-interface ExtendedScanResult extends ScanResult {
-  services?: Array<{ port: number; name: string }>;
-  os?: string;
-}
-
-interface NetworkInterface {
-  interface: string;
-  ip: string;
-  netmask: string;
-  gateway?: string;
-  type: string;
-}
-
-// Función auxiliar para validar IP privada
-function isPrivateIP(ip: string): boolean {
-  try {
-    const addr = ipaddr.process(ip);
-    const range = addr.range();
-    return range === 'private' || range === 'loopback';
-  } catch {
-    return false;
-  }
-}
+import { isPrivateIP } from '../shared/networkUtils';
 
 export class ModernNetworkScanner extends EventEmitter {
   private readonly cache: NodeCache;

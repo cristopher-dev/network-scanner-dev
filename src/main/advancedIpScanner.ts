@@ -5,36 +5,7 @@ import { promisify } from 'util';
 import { EventEmitter } from 'events';
 import NodeCache from 'node-cache';
 
-interface IScanResult {
-  ip: string;
-  hostname?: string;
-  mac?: string;
-  ports?: number[];
-  os?: string;
-  status: 'up' | 'down';
-  latency?: number;
-  services?: { port: number; name: string }[];
-  vendor?: string;
-}
-
-interface IScanProgress {
-  current: number;
-  total: number;
-  ip: string;
-  timeElapsed: number;
-  estimatedTimeRemaining: number;
-  speed: number;
-}
-
-class ScanError extends Error {
-  constructor(
-    message: string,
-    public code: string,
-  ) {
-    super(message);
-    this.name = 'ScanError';
-  }
-}
+import { IScanResult, ScanError } from '../shared/types';
 
 export class AdvancedIpScanner extends EventEmitter {
   private readonly lookup = promisify(dns.lookup);

@@ -90,6 +90,15 @@ const Configuration: webpack.Configuration = {
     extensions: ['.js', '.jsx', '.json', '.ts', '.tsx'],
     modules: [path.join(PATHS.src), 'node_modules'],
     plugins: [new TsconfigPathsPlugin({ configFile: PATHS.tsconfig })],
+    fallback: {
+      path: false,
+      fs: false,
+      electron: false,
+      child_process: false,
+      os: false,
+      net: false,
+      timers: false,
+    },
   },
 
   // Optimización

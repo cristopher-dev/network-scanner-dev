@@ -15,20 +15,22 @@ import StopIcon from '@mui/icons-material/Stop';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
 
-const Header = ({
-  darkMode,
-  setDarkMode,
-  searchTerm,
-  setSearchTerm,
-  handleScan,
-  scanning,
-}: {
+interface Props {
   darkMode: boolean;
   setDarkMode: (value: boolean) => void;
   searchTerm: string;
   setSearchTerm: (value: string) => void;
   handleScan: () => void;
   scanning: boolean;
+}
+
+const Header: React.FC<Props> = ({
+  darkMode,
+  setDarkMode,
+  searchTerm,
+  setSearchTerm,
+  handleScan,
+  scanning,
 }) => (
   <Box className="header-container">
     <Box className="title-section">
@@ -57,9 +59,7 @@ const Header = ({
         placeholder="Buscar dispositivos..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        InputProps={{
-          startAdornment: <SearchIcon />,
-        }}
+        InputProps={{ startAdornment: <SearchIcon /> }}
         className="search-field"
       />
       <Button

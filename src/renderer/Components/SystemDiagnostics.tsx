@@ -73,20 +73,136 @@ const SystemDiagnostics: React.FC<SystemDiagnosticsProps> = ({ open, onClose }) 
     }
   }, [open]);
 
-  const getStatusIcon = (status: boolean) => {
-    return status ? <CheckCircleIcon color="success" /> : <ErrorIcon color="error" />;
-  };
+  const getSuccessIcon = () => <CheckCircleIcon color="success" />;
+  const getErrorIcon = () => <ErrorIcon color="error" />;
 
   const getStatusChip = (status: boolean, label: string) => {
     return (
       <Chip
-        icon={getStatusIcon(status)}
+        icon={status ? getSuccessIcon() : getErrorIcon()}
         label={label}
         color={status ? 'success' : 'error'}
         variant="outlined"
       />
     );
   };
+
+  let content: React.ReactNode = null;
+  if (loading) {
+    content = (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
+        <CircularProgress />
+        <Typography variant="body1" sx={{ ml: 2 }}>
+          Ejecutando diagnósticos...
+        </Typography>
+      </Box>
+    );
+  } else if (diagnostics) {
+    content = (
+      <Box>
+        {diagnostics.error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {diagnostics.error}
+          </Alert>
+        )}
+
+        {!diagnostics.npmLibrariesAvailable && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              ⚠️ Algunas librerías NPM no están disponibles
+            </Typography>
+            <Typography variant="body2">
+              La aplicación funcionará con capacidades limitadas. Verifica la instalación de las
+              dependencias siguiendo las instrucciones a continuación.
+            </Typography>
+          </Alert>
+        )}
+
+        <Paper elevation={1} sx={{ p: 2, mb: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Estado de Componentes
+          </Typography>
+
+          <List dense>
+            <ListItem>
+              <ListItemIcon>
+                {diagnostics.npmLibrariesAvailable ? getSuccessIcon() : getErrorIcon()}
+              </ListItemIcon>
+              <ListItemText
+                primary="Librerías NPM"
+                secondary={
+                  diagnostics.npmLibrariesAvailable
+                    ? `Disponibles: ${diagnostics.libraryVersions?.join(', ')}`
+                    : 'Algunas librerías no están disponibles'
+                }
+              />
+              {getStatusChip(
+                diagnostics.npmLibrariesAvailable,
+                diagnostics.npmLibrariesAvailable ? 'Disponible' : 'No disponible',
+              )}
+            </ListItem>
+
+            <ListItem>
+              <ListItemIcon>
+                {diagnostics.pingTest ? getSuccessIcon() : getErrorIcon()}
+              </ListItemIcon>
+              <ListItemText primary="Conectividad de Red" secondary="Prueba de ping a 8.8.8.8" />
+              {getStatusChip(
+                diagnostics.pingTest,
+                diagnostics.pingTest ? 'Funcionando' : 'Con problemas',
+              )}
+            </ListItem>
+          </List>
+        </Paper>
+
+        <Accordion>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="subtitle1">
+              <ComputerIcon sx={{ mr: 1, verticalAlign: 'bottom' }} />
+              Información del Sistema
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Typography variant="body2" component="pre">
+              Plataforma: {diagnostics.systemInfo.platform}
+              {'\n'}
+              Arquitectura: {diagnostics.systemInfo.arch}
+            </Typography>
+          </AccordionDetails>
+        </Accordion>
+
+        <Accordion>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="subtitle1">
+              <NetworkIcon sx={{ mr: 1, verticalAlign: 'bottom' }} />
+              Interfaces de Red
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Typography variant="body2" component="pre" sx={{ fontSize: '0.75rem' }}>
+              {JSON.stringify(diagnostics.networkInterfaces, null, 2)}
+            </Typography>
+          </AccordionDetails>
+        </Accordion>
+
+        {!diagnostics.npmLibrariesAvailable && nmapInstructions && (
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="subtitle1">
+                <WarningIcon sx={{ mr: 1, verticalAlign: 'bottom' }} />
+                Instrucciones de Configuración
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography variant="body2" component="pre" sx={{ whiteSpace: 'pre-wrap' }}>
+                {nmapInstructions}
+              </Typography>
+            </AccordionDetails>
+          </Accordion>
+        )}
+      </Box>
+    );
+  }
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -96,120 +212,7 @@ const SystemDiagnostics: React.FC<SystemDiagnosticsProps> = ({ open, onClose }) 
           Diagnóstico del Sistema
         </Box>
       </DialogTitle>
-
-      <DialogContent>
-        {loading ? (
-          <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
-            <CircularProgress />
-            <Typography variant="body1" sx={{ ml: 2 }}>
-              Ejecutando diagnósticos...
-            </Typography>
-          </Box>
-        ) : diagnostics ? (
-          <Box>
-            {diagnostics.error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {diagnostics.error}
-              </Alert>
-            )}
-
-            {!diagnostics.npmLibrariesAvailable && (
-              <Alert severity="warning" sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  ⚠️ Algunas librerías NPM no están disponibles
-                </Typography>
-                <Typography variant="body2">
-                  La aplicación funcionará con capacidades limitadas. Verifica la instalación de las
-                  dependencias siguiendo las instrucciones a continuación.
-                </Typography>
-              </Alert>
-            )}
-
-            <Paper elevation={1} sx={{ p: 2, mb: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Estado de Componentes
-              </Typography>
-
-              <List dense>
-                <ListItem>
-                  <ListItemIcon>{getStatusIcon(diagnostics.npmLibrariesAvailable)}</ListItemIcon>
-                  <ListItemText
-                    primary="Librerías NPM"
-                    secondary={
-                      diagnostics.npmLibrariesAvailable
-                        ? `Disponibles: ${diagnostics.libraryVersions?.join(', ')}`
-                        : 'Algunas librerías no están disponibles'
-                    }
-                  />
-                  {getStatusChip(
-                    diagnostics.npmLibrariesAvailable,
-                    diagnostics.npmLibrariesAvailable ? 'Disponible' : 'No disponible',
-                  )}
-                </ListItem>
-
-                <ListItem>
-                  <ListItemIcon>{getStatusIcon(diagnostics.pingTest)}</ListItemIcon>
-                  <ListItemText
-                    primary="Conectividad de Red"
-                    secondary="Prueba de ping a 8.8.8.8"
-                  />
-                  {getStatusChip(
-                    diagnostics.pingTest,
-                    diagnostics.pingTest ? 'Funcionando' : 'Con problemas',
-                  )}
-                </ListItem>
-              </List>
-            </Paper>
-
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle1">
-                  <ComputerIcon sx={{ mr: 1, verticalAlign: 'bottom' }} />
-                  Información del Sistema
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <Typography variant="body2" component="pre">
-                  Plataforma: {diagnostics.systemInfo.platform}
-                  {'\n'}
-                  Arquitectura: {diagnostics.systemInfo.arch}
-                </Typography>
-              </AccordionDetails>
-            </Accordion>
-
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle1">
-                  <NetworkIcon sx={{ mr: 1, verticalAlign: 'bottom' }} />
-                  Interfaces de Red
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <Typography variant="body2" component="pre" sx={{ fontSize: '0.75rem' }}>
-                  {JSON.stringify(diagnostics.networkInterfaces, null, 2)}
-                </Typography>
-              </AccordionDetails>
-            </Accordion>
-
-            {!diagnostics.npmLibrariesAvailable && nmapInstructions && (
-              <Accordion>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Typography variant="subtitle1">
-                    <WarningIcon sx={{ mr: 1, verticalAlign: 'bottom' }} />
-                    Instrucciones de Configuración
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Typography variant="body2" component="pre" sx={{ whiteSpace: 'pre-wrap' }}>
-                    {nmapInstructions}
-                  </Typography>
-                </AccordionDetails>
-              </Accordion>
-            )}
-          </Box>
-        ) : null}
-      </DialogContent>
-
+      <DialogContent>{content}</DialogContent>
       <DialogActions>
         <Button onClick={runDiagnostics} disabled={loading}>
           Ejecutar Diagnósticos

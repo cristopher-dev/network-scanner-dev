@@ -1,17 +1,21 @@
 import React from 'react';
 import { Drawer, Box, Typography, List, ListItem, Slider, TextField } from '@mui/material';
 
-const ConfigDrawer = ({
-  drawerOpen,
-  setDrawerOpen,
-  config,
-  setConfig,
-}: {
+interface Config {
+  timeout: number;
+  batchSize: number;
+  startRange: number;
+  endRange: number;
+}
+
+interface Props {
   drawerOpen: boolean;
   setDrawerOpen: (open: boolean) => void;
-  config: any;
-  setConfig: (config: any) => void;
-}) => (
+  config: Config;
+  setConfig: (config: Config) => void;
+}
+
+const ConfigDrawer: React.FC<Props> = ({ drawerOpen, setDrawerOpen, config, setConfig }) => (
   <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
     <Box sx={{ width: 350, p: 3 }}>
       <Typography variant="h6" gutterBottom>
@@ -21,7 +25,7 @@ const ConfigDrawer = ({
         <ConfigSlider
           label="Timeout (ms)"
           value={config.timeout}
-          onChange={(value) => setConfig({ ...config, timeout: value })}
+          onChange={(v) => setConfig({ ...config, timeout: v })}
           min={500}
           max={5000}
           step={100}
@@ -29,7 +33,7 @@ const ConfigDrawer = ({
         <ConfigSlider
           label="Tamaño de Lote"
           value={config.batchSize}
-          onChange={(value) => setConfig({ ...config, batchSize: value })}
+          onChange={(v) => setConfig({ ...config, batchSize: v })}
           min={5}
           max={50}
           step={5}
@@ -38,36 +42,29 @@ const ConfigDrawer = ({
           label="Rango IP"
           startValue={config.startRange}
           endValue={config.endRange}
-          onStartChange={(value) => setConfig({ ...config, startRange: value })}
-          onEndChange={(value) => setConfig({ ...config, endRange: value })}
+          onStartChange={(v) => setConfig({ ...config, startRange: v })}
+          onEndChange={(v) => setConfig({ ...config, endRange: v })}
         />
       </List>
     </Box>
   </Drawer>
 );
 
-const ConfigSlider = ({
-  label,
-  value,
-  onChange,
-  min,
-  max,
-  step,
-}: {
+const ConfigSlider: React.FC<{
   label: string;
   value: number;
   onChange: (value: number) => void;
   min: number;
   max: number;
   step: number;
-}) => (
+}> = ({ label, value, onChange, min, max, step }) => (
   <ListItem>
     <Box sx={{ width: '100%' }}>
       <Typography variant="body1">{label}</Typography>
       <Box sx={{ mt: 1 }}>
         <Slider
           value={value}
-          onChange={(_, value) => onChange(value as number)}
+          onChange={(_, v) => onChange(v as number)}
           min={min}
           max={max}
           step={step}
@@ -77,19 +74,13 @@ const ConfigSlider = ({
   </ListItem>
 );
 
-const ConfigRange = ({
-  label,
-  startValue,
-  endValue,
-  onStartChange,
-  onEndChange,
-}: {
+const ConfigRange: React.FC<{
   label: string;
   startValue: number;
   endValue: number;
   onStartChange: (value: number) => void;
   onEndChange: (value: number) => void;
-}) => (
+}> = ({ label, startValue, endValue, onStartChange, onEndChange }) => (
   <ListItem>
     <Box>
       <Typography variant="body1">{label}</Typography>

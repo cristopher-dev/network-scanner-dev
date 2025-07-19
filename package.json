@@ -59,6 +59,7 @@
     "network-js": "^2.1.0",
     "node-arp": "^1.0.6",
     "node-cache": "^5.1.2",
+    "node-nmap": "^4.0.0",
     "oui-data": "^1.1.391",
     "ping": "^0.4.4",
     "portscanner": "^2.2.0",

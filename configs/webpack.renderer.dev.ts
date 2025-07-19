@@ -96,6 +96,10 @@ const Configuration: webpack.Configuration = {
       path: false,
       fs: false,
       electron: false,
+      child_process: false,
+      os: false,
+      net: false,
+      timers: false,
     },
   },
 

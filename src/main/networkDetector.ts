@@ -121,40 +121,14 @@ export class NetworkDetector {
       const { stdout } = await execAsync(command);
 
       if (platform === 'win32') {
-        // En Windows, buscar la línea que contiene 0.0.0.0
-        const lines = stdout.split('\n');
-        for (const line of lines) {
-          if (line.includes('0.0.0.0') && line.includes('0.0.0.0')) {
-            const parts = line.trim().split(/\s+/);
-            if (parts.length >= 3) {
-              const gateway = parts[2];
-              if (this.isValidIP(gateway)) {
-                log.info(`Gateway detectado: ${gateway}`);
-                return gateway;
-              }
-            }
-          }
-        }
+        const gateway = this.extractGatewayFromWindows(stdout);
+        if (gateway) return gateway;
       } else if (platform === 'darwin') {
-        // En macOS, buscar la línea "gateway:"
-        const lines = stdout.split('\n');
-        for (const line of lines) {
-          if (line.includes('gateway:')) {
-            const gateway = line.split(':')[1]?.trim();
-            if (gateway && this.isValidIP(gateway)) {
-              log.info(`Gateway detectado: ${gateway}`);
-              return gateway;
-            }
-          }
-        }
+        const gateway = this.extractGatewayFromDarwin(stdout);
+        if (gateway) return gateway;
       } else {
-        // En Linux, buscar "default via"
-        const match = stdout.match(/default via (\d+\.\d+\.\d+\.\d+)/);
-        if (match && match[1]) {
-          const gateway = match[1];
-          log.info(`Gateway detectado: ${gateway}`);
-          return gateway;
-        }
+        const gateway = this.extractGatewayFromLinux(stdout);
+        if (gateway) return gateway;
       }
 
       log.warn('No se pudo detectar el gateway predeterminado');
@@ -163,6 +137,48 @@ export class NetworkDetector {
       log.error('Error detectando gateway:', error);
       return null;
     }
+  }
+
+  private static extractGatewayFromWindows(stdout: string): string | null {
+    const lines = stdout.split('\n');
+    for (const line of lines) {
+      if (line.includes('0.0.0.0')) {
+        const parts = line.trim().split(/\s+/);
+        if (parts.length >= 3) {
+          const gateway = parts[2];
+          if (this.isValidIP(gateway)) {
+            log.info(`Gateway detectado: ${gateway}`);
+            return gateway;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  private static extractGatewayFromDarwin(stdout: string): string | null {
+    const lines = stdout.split('\n');
+    for (const line of lines) {
+      if (line.includes('gateway:')) {
+        const gateway = line.split(':')?.[1]?.trim();
+        if (gateway && this.isValidIP(gateway)) {
+          log.info(`Gateway detectado: ${gateway}`);
+          return gateway;
+        }
+      }
+    }
+    return null;
+  }
+
+  private static extractGatewayFromLinux(stdout: string): string | null {
+    const regex = /default via (\d+\.\d+\.\d+\.\d+)/;
+    const match = regex.exec(stdout);
+    if (match?.[1]) {
+      const gateway = match[1];
+      log.info(`Gateway detectado: ${gateway}`);
+      return gateway;
+    }
+    return null;
   }
 
   /**
@@ -273,9 +289,6 @@ export class NetworkDetector {
    * Calcula el rango de IPs para escanear basado en la máscara de red
    */
   static calculateScanRange(address: string, netmask: string): { start: number; end: number } {
-    const addressParts = address.split('.').map(Number);
-    const netmaskParts = netmask.split('.').map(Number);
-
     // Para la mayoría de redes domésticas (255.255.255.0), escanear de 1 a 254
     if (netmask === '255.255.255.0') {
       return { start: 1, end: 254 };

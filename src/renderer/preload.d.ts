@@ -16,8 +16,7 @@ declare global {
           | 'get'
           | 'set'
           | 'get-scan-config'
-          | 'set-scan-config'
-          | string,
+          | 'set-scan-config',
         ...args: unknown[]
       ): Promise<any>;
 

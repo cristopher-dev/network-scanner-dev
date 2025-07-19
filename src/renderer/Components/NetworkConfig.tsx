@@ -8,26 +8,20 @@ import {
   Grid,
   Chip,
   Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  CircularProgress,
-  IconButton,
   Tooltip,
   Collapse,
   Divider,
+  IconButton,
+  CircularProgress,
 } from '@mui/material';
 import {
   NetworkCheck as NetworkCheckIcon,
   Refresh as RefreshIcon,
   Settings as SettingsIcon,
-  Warning as WarningIcon,
-  Error as ErrorIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
-import { NetworkUtils } from '../../shared/networkUtils';
+import { NetworkUtils } from '../../shared/clientUtils';
 
 interface NetworkInfo {
   baseIp: string;
@@ -38,16 +32,18 @@ interface NetworkInfo {
   gateway?: string;
 }
 
+interface Config {
+  timeout: number;
+  batchSize: number;
+  ports: number[];
+  baseIp: string;
+  startRange: number;
+  endRange: number;
+}
+
 interface NetworkConfigProps {
-  config: {
-    baseIp: string;
-    startRange: number;
-    endRange: number;
-    ports: number[];
-    timeout: number;
-    batchSize: number;
-  };
-  setConfig: (config: any) => void;
+  config: Config;
+  setConfig: React.Dispatch<React.SetStateAction<Config>>;
   availableNetworks: NetworkInfo[];
   onDetectNetwork: () => void;
   onRefreshNetworks: () => void;
@@ -55,7 +51,7 @@ interface NetworkConfigProps {
   scanning: boolean;
 }
 
-const NetworkConfig: React.FC<NetworkConfigProps> = ({
+const NetworkConfigComponent: React.FC<NetworkConfigProps> = ({
   config,
   setConfig,
   availableNetworks,
@@ -67,37 +63,20 @@ const NetworkConfig: React.FC<NetworkConfigProps> = ({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [validation, setValidation] = useState<any>(null);
 
-  // Validar configuración cada vez que cambie
   useEffect(() => {
-    const result = NetworkUtils.validateScanConfig(config);
-    setValidation(result);
+    setValidation(NetworkUtils.validateScanConfig(config));
   }, [config]);
 
-  const handleNetworkSelect = (networkInfo: NetworkInfo) => {
-    setConfig((prev: any) => ({
-      ...prev,
-      baseIp: networkInfo.baseIp,
-      startRange: 1,
-      endRange: 254,
-    }));
-  };
+  const handleConfigChange = (field: string, value: any) =>
+    setConfig((prev: any) => ({ ...prev, [field]: value }));
 
-  const handleConfigChange = (field: string, value: any) => {
-    setConfig((prev: any) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
+  const handleNetworkSelect = (n: NetworkInfo) =>
+    setConfig((p: any) => ({ ...p, baseIp: n.baseIp, startRange: 1, endRange: 254 }));
 
-  const handleCommonConfigSelect = (commonConfig: any) => {
-    setConfig((prev: any) => ({
-      ...prev,
-      baseIp: commonConfig.baseIp,
-    }));
-  };
+  const handleCommonConfigSelect = (c: any) => setConfig((p: any) => ({ ...p, baseIp: c.baseIp }));
 
-  const estimatedTime = NetworkUtils.estimateScanTime(config);
-  const formattedTime = NetworkUtils.formatEstimatedTime(estimatedTime);
+  const formattedTime = NetworkUtils.formatEstimatedTime(NetworkUtils.estimateScanTime(config));
+  const currentNetwork = availableNetworks.find((n) => n.baseIp === config.baseIp);
 
   return (
     <Paper sx={{ p: 3, mb: 2 }}>
@@ -128,84 +107,75 @@ const NetworkConfig: React.FC<NetworkConfigProps> = ({
             Redes detectadas:
           </Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {availableNetworks.map((network, index) => (
-              <Tooltip
-                key={index}
-                title={`IP: ${network.address}, Gateway: ${network.gateway || 'No detectado'}, Interfaz: ${network.interface}`}
-              >
-                <Chip
-                  label={`${network.baseIp}.x (${network.interface})${network.gateway ? ` → ${network.gateway}` : ''}`}
-                  onClick={() => handleNetworkSelect(network)}
-                  color={network.baseIp === config.baseIp ? 'primary' : 'default'}
-                  variant={network.baseIp === config.baseIp ? 'filled' : 'outlined'}
-                  size="small"
-                />
-              </Tooltip>
-            ))}
+            {availableNetworks.map((n) => {
+              const chipLabel = `${n.baseIp}.x (${n.interface})${n.gateway ? ` → ${n.gateway}` : ''}`;
+              return (
+                <Tooltip
+                  key={`${n.interface}-${n.baseIp}`}
+                  title={`IP: ${n.address}, Gateway: ${n.gateway || 'No detectado'}, Interfaz: ${n.interface}`}
+                >
+                  <Chip
+                    label={chipLabel}
+                    onClick={() => handleNetworkSelect(n)}
+                    color={n.baseIp === config.baseIp ? 'primary' : 'default'}
+                    variant={n.baseIp === config.baseIp ? 'filled' : 'outlined'}
+                    size="small"
+                  />
+                </Tooltip>
+              );
+            })}
           </Box>
         </Box>
       )}
 
-      {/* Información detallada de la red actual */}
-      {availableNetworks.length > 0 && (
-        <Box sx={{ mb: 2 }}>
-          {(() => {
-            const currentNetwork = availableNetworks.find((n) => n.baseIp === config.baseIp);
-            if (currentNetwork) {
-              return (
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    Red Seleccionada: {currentNetwork.interface}
-                  </Typography>
-                  <Grid container spacing={1}>
-                    <Grid item xs={6}>
-                      <Typography variant="body2">
-                        <strong>IP Local:</strong> {currentNetwork.address}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2">
-                        <strong>Máscara:</strong> {currentNetwork.netmask}
-                      </Typography>
-                    </Grid>
-                    {currentNetwork.gateway && (
-                      <Grid item xs={6}>
-                        <Typography variant="body2">
-                          <strong>Gateway:</strong> {currentNetwork.gateway}
-                        </Typography>
-                      </Grid>
-                    )}
-                    {currentNetwork.cidr && (
-                      <Grid item xs={6}>
-                        <Typography variant="body2">
-                          <strong>CIDR:</strong> {currentNetwork.cidr}
-                        </Typography>
-                      </Grid>
-                    )}
-                  </Grid>
-                </Alert>
-              );
-            }
-            return null;
-          })()}
-        </Box>
+      {currentNetwork && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
+            Red Seleccionada: {currentNetwork.interface}
+          </Typography>
+          <Grid container spacing={1}>
+            <Grid item xs={6}>
+              <Typography variant="body2">
+                <strong>IP Local:</strong> {currentNetwork.address}
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2">
+                <strong>Máscara:</strong> {currentNetwork.netmask}
+              </Typography>
+            </Grid>
+            {currentNetwork.gateway && (
+              <Grid item xs={6}>
+                <Typography variant="body2">
+                  <strong>Gateway:</strong> {currentNetwork.gateway}
+                </Typography>
+              </Grid>
+            )}
+            {currentNetwork.cidr && (
+              <Grid item xs={6}>
+                <Typography variant="body2">
+                  <strong>CIDR:</strong> {currentNetwork.cidr}
+                </Typography>
+              </Grid>
+            )}
+          </Grid>
+        </Alert>
       )}
 
-      {/* Configuraciones comunes */}
       <Box sx={{ mb: 2 }}>
         <Typography variant="subtitle2" sx={{ mb: 1 }}>
           Configuraciones comunes:
         </Typography>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-          {NetworkUtils.getCommonNetworkConfigs().map((commonConfig, index) => (
+          {NetworkUtils.getCommonNetworkConfigs().map((c) => (
             <Chip
-              key={index}
-              label={commonConfig.name}
-              onClick={() => handleCommonConfigSelect(commonConfig)}
-              color={commonConfig.baseIp === config.baseIp ? 'primary' : 'default'}
-              variant={commonConfig.baseIp === config.baseIp ? 'filled' : 'outlined'}
+              key={c.baseIp}
+              label={c.name}
+              onClick={() => handleCommonConfigSelect(c)}
+              color={c.baseIp === config.baseIp ? 'primary' : 'default'}
+              variant={c.baseIp === config.baseIp ? 'filled' : 'outlined'}
               size="small"
-              title={commonConfig.description}
+              title={c.description}
             />
           ))}
         </Box>
@@ -250,10 +220,9 @@ const NetworkConfig: React.FC<NetworkConfigProps> = ({
             fullWidth
             label="Puertos"
             value={config.ports.join(', ')}
-            onChange={(e) => {
-              const ports = NetworkUtils.parsePortsString(e.target.value);
-              handleConfigChange('ports', ports);
-            }}
+            onChange={(e) =>
+              handleConfigChange('ports', NetworkUtils.parsePortsString(e.target.value))
+            }
             disabled={scanning}
             helperText="Separados por comas (ej: 22, 80, 443)"
           />
@@ -304,33 +273,26 @@ const NetworkConfig: React.FC<NetworkConfigProps> = ({
         </Box>
       </Collapse>
 
-      {/* Validación y estadísticas */}
       {validation && (
         <Box sx={{ mt: 2 }}>
-          {validation.errors.length > 0 && (
+          {validation.errors?.length > 0 && (
             <Alert severity="error" sx={{ mb: 1 }}>
-              <Box>
-                {validation.errors.map((error: string, index: number) => (
-                  <Typography key={index} variant="body2">
-                    • {error}
-                  </Typography>
-                ))}
-              </Box>
+              {validation.errors.map((e: string, idx: number) => (
+                <Typography key={`error-${idx}`} variant="body2">
+                  • {e}
+                </Typography>
+              ))}
             </Alert>
           )}
-
-          {validation.warnings.length > 0 && (
+          {validation.warnings?.length > 0 && (
             <Alert severity="warning" sx={{ mb: 1 }}>
-              <Box>
-                {validation.warnings.map((warning: string, index: number) => (
-                  <Typography key={index} variant="body2">
-                    • {warning}
-                  </Typography>
-                ))}
-              </Box>
+              {validation.warnings.map((w: string, idx: number) => (
+                <Typography key={`warning-${idx}`} variant="body2">
+                  • {w}
+                </Typography>
+              ))}
             </Alert>
           )}
-
           <Alert severity="info">
             <Typography variant="body2">
               <strong>Rango a escanear:</strong> {config.baseIp}.{config.startRange} -{' '}
@@ -341,11 +303,10 @@ const NetworkConfig: React.FC<NetworkConfigProps> = ({
               <strong>Puertos por IP:</strong> {config.ports.length}
               <br />
               <strong>Tiempo estimado:</strong> {formattedTime}
-              {availableNetworks.find((n) => n.baseIp === config.baseIp)?.gateway && (
+              {currentNetwork?.gateway && (
                 <>
                   <br />
-                  <strong>Gateway:</strong>{' '}
-                  {availableNetworks.find((n) => n.baseIp === config.baseIp)?.gateway}
+                  <strong>Gateway:</strong> {currentNetwork.gateway}
                 </>
               )}
             </Typography>
@@ -356,4 +317,4 @@ const NetworkConfig: React.FC<NetworkConfigProps> = ({
   );
 };
 
-export default NetworkConfig;
+export default NetworkConfigComponent;

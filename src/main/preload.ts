@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-const validChannels = [
+const channels = [
   'scan-network',
   'store-save',
   'store-load',
@@ -11,54 +11,36 @@ const validChannels = [
   'set',
   'get-scan-config',
   'set-scan-config',
+  'run-diagnostics',
+  'get-setup-instructions',
 ] as const;
-type ValidChannel = (typeof validChannels)[number];
+type Channel = (typeof channels)[number];
 
-const ipcApi = {
-  invoke: (channel: ValidChannel, ...args: unknown[]) => {
-    if (validChannels.includes(channel)) {
-      return ipcRenderer.invoke(channel, ...args);
-    }
-    return Promise.reject(new Error(`Canal no permitido: ${channel}`));
-  },
-  on: (channel: ValidChannel, callback: (...args: any[]) => void) => {
-    if (validChannels.includes(channel)) {
-      const subscription = (_event: any, ...args: any[]) => callback(...args);
-      ipcRenderer.on(channel, subscription);
-      return () => ipcRenderer.removeListener(channel, subscription);
-    }
-  },
-  // Legacy methods for compatibility
-  send: (channel: string, data: unknown) => {
-    ipcRenderer.send(channel, data);
-  },
-  receive: (channel: string, callback: (...args: unknown[]) => void) => {
-    ipcRenderer.on(channel, callback);
-  },
-  set: (key: string, value: unknown) => {
-    ipcRenderer.send('set', key, value);
-  },
-  get: (key: string) => {
-    return ipcRenderer.invoke('get', key);
-  },
+const ipc = {
+  invoke: (channel: Channel, ...args: unknown[]) =>
+    channels.includes(channel)
+      ? ipcRenderer.invoke(channel, ...args)
+      : Promise.reject(new Error(`Canal no permitido: ${channel}`)),
+  on: (channel: Channel, cb: (...args: any[]) => void) =>
+    channels.includes(channel)
+      ? (ipcRenderer.on(channel, (_e, ...a) => cb(...a)),
+        () => ipcRenderer.removeAllListeners(channel))
+      : undefined,
+  get: (key: string) => ipcRenderer.invoke('get', key),
+  set: (key: string, value: unknown) => ipcRenderer.send('set', key, value),
 };
 
-const storeApi = {
-  saveNetworkData: (data: any) => {
-    return ipcRenderer.invoke('store-save', data);
-  },
-  loadNetworkData: () => {
-    return ipcRenderer.invoke('store-load');
-  },
+const store = {
+  saveNetworkData: (data: any) => ipcRenderer.invoke('store-save', data),
+  loadNetworkData: () => ipcRenderer.invoke('store-load'),
 };
 
-contextBridge.exposeInMainWorld('ipc', ipcApi);
-contextBridge.exposeInMainWorld('store', storeApi);
+contextBridge.exposeInMainWorld('ipc', ipc);
+contextBridge.exposeInMainWorld('store', store);
 
-// Tipos globales
 declare global {
   interface Window {
-    ipc: typeof ipcApi;
-    store: typeof storeApi;
+    ipc: typeof ipc;
+    store: typeof store;
   }
 }
