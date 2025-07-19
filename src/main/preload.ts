@@ -1,6 +1,17 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-const validChannels = ['scan-network', 'store-save', 'store-load', 'scan-progress'] as const;
+const validChannels = [
+  'scan-network',
+  'store-save',
+  'store-load',
+  'scan-progress',
+  'get-available-networks',
+  'detect-current-network',
+  'get',
+  'set',
+  'get-scan-config',
+  'set-scan-config',
+] as const;
 type ValidChannel = (typeof validChannels)[number];
 
 const ipcApi = {

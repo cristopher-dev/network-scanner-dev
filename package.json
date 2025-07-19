@@ -13,6 +13,7 @@
     "clean:dist": "ts-node configs/clean.ts --dist",
     "clean": "ts-node configs/clean.ts --clean",
     "debug": "concurrently \"cross-env NODE_ENV=production ELECTRON_ENV=debug webpack --config configs/webpack.main.prod.ts\" \"cross-env NODE_ENV=production ELECTRON_ENV=debug webpack --config configs/webpack.renderer.prod.ts\"",
+    "diagnostics": "ts-node scripts/diagnostics.ts",
     "make:linux": "npm run clean:build && npm run build && electron-builder build -l",
     "make:mac": "npm run clean:build && npm run build && electron-builder build -m",
     "make:win": "npm run clean:build && npm run build && electron-builder build -w",

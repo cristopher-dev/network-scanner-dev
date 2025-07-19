@@ -6,7 +6,57 @@ import './updater';
 import AdvancedIpScanner from './advancedIpScanner';
 import { BasicNetworkScanner } from './basicScanner';
 import { SystemDiagnostics } from './diagnostics';
+import { NetworkDetector } from './networkDetector';
 import Store from 'electron-store';
+import log from 'electron-log';
+
+// Detectar automáticamente la red local
+const detectNetworkConfig = async () => {
+  const networkInfo = await NetworkDetector.detectLocalNetworkWithGateway();
+  if (networkInfo) {
+    log.info(`Red detectada automáticamente: ${networkInfo.baseIp}.x en ${networkInfo.interface}`);
+    if (networkInfo.gateway) {
+      log.info(`Gateway detectado: ${networkInfo.gateway}`);
+    }
+    const scanRange = NetworkDetector.calculateScanRange(networkInfo.address, networkInfo.netmask);
+    return {
+      baseIp: networkInfo.baseIp,
+      startRange: scanRange.start,
+      endRange: scanRange.end,
+      gateway: networkInfo.gateway,
+    };
+  } else {
+    log.warn('No se pudo detectar la red automáticamente, usando configuración por defecto');
+    return {
+      baseIp: '192.168.1', // Valor por defecto más común
+      startRange: 1,
+      endRange: 254,
+      gateway: undefined,
+    };
+  }
+};
+
+// Configuración inicial por defecto (se actualizará dinámicamente)
+let defaultNetworkConfig: {
+  baseIp: string;
+  startRange: number;
+  endRange: number;
+  gateway?: string;
+} = {
+  baseIp: '192.168.1',
+  startRange: 1,
+  endRange: 254,
+};
+
+// Inicializar configuración de red de forma asíncrona
+detectNetworkConfig()
+  .then((config) => {
+    defaultNetworkConfig = config;
+    log.info('Configuración de red inicializada:', config);
+  })
+  .catch((error) => {
+    log.error('Error inicializando configuración de red:', error);
+  });
 
 // Modificación del manejo de electron-store
 const store = new Store({
@@ -17,9 +67,7 @@ const store = new Store({
       timeout: 2000,
       batchSize: 10,
       ports: [20, 21, 22, 23, 25, 53, 80, 443, 445, 3389],
-      baseIp: '192.168.10',
-      startRange: 1,
-      endRange: 254,
+      ...defaultNetworkConfig,
     },
   },
 });
@@ -88,6 +136,8 @@ const setupIpc = (): void => {
 
   ipcMain.on('set', (_event, key, value) => store.set(key, value));
   ipcMain.handle('get', (_event, key) => store.get(key));
+  ipcMain.handle('get-scan-config', () => store.get('scanConfig'));
+  ipcMain.handle('set-scan-config', (_event, config) => store.set('scanConfig', config));
 
   // Manejar el escaneo de red
   ipcMain.handle('scan-network', async (event, scanConfig) => {
@@ -164,6 +214,42 @@ const setupIpc = (): void => {
         console.error('Error en el escaneo de fallback:', fallbackError);
         throw fallbackError;
       }
+    }
+  });
+
+  // Manejador para obtener redes disponibles
+  ipcMain.handle('get-available-networks', async () => {
+    try {
+      const networks = await NetworkDetector.getAllNetworksWithGateway();
+      log.info(`Redes disponibles encontradas: ${networks.length}`);
+      return networks;
+    } catch (error) {
+      log.error('Error obteniendo redes disponibles:', error);
+      return [];
+    }
+  });
+
+  // Manejador para detectar la red actual automáticamente
+  ipcMain.handle('detect-current-network', async () => {
+    try {
+      const networkInfo = await NetworkDetector.detectLocalNetworkWithGateway();
+      if (networkInfo) {
+        const scanRange = NetworkDetector.calculateScanRange(
+          networkInfo.address,
+          networkInfo.netmask,
+        );
+        const result = {
+          ...networkInfo,
+          startRange: scanRange.start,
+          endRange: scanRange.end,
+        };
+        log.info('Red actual detectada:', result);
+        return result;
+      }
+      return null;
+    } catch (error) {
+      log.error('Error detectando red actual:', error);
+      return null;
     }
   });
 

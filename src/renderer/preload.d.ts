@@ -11,6 +11,12 @@ declare global {
           | 'store-load'
           | 'run-diagnostics'
           | 'get-nmap-instructions'
+          | 'get-available-networks'
+          | 'detect-current-network'
+          | 'get'
+          | 'set'
+          | 'get-scan-config'
+          | 'set-scan-config'
           | string,
         ...args: unknown[]
       ): Promise<any>;

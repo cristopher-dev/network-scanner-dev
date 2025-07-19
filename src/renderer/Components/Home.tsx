@@ -28,6 +28,7 @@ import ResultsGrid from './ResultsGrid';
 import ConfigDrawer from './ConfigDrawer';
 import FilterMenu from './FilterMenu';
 import SystemDiagnostics from './SystemDiagnostics';
+import NetworkConfig from './NetworkConfig';
 import './Home.css';
 
 interface ScanConfig {
@@ -59,10 +60,12 @@ const Home: React.FC = () => {
     timeout: 2000,
     batchSize: 10,
     ports: [20, 21, 22, 23, 25, 53, 80, 443, 445, 3389, 8080],
-    baseIp: '192.168.10',
+    baseIp: '192.168.1', // Valor por defecto más común
     startRange: 1,
     endRange: 254,
   });
+  const [availableNetworks, setAvailableNetworks] = useState<any[]>([]);
+  const [autoDetecting, setAutoDetecting] = useState(false);
   const [filters, setFilters] = useState({
     status: 'all',
     orderBy: 'ip',
@@ -133,6 +136,64 @@ const Home: React.FC = () => {
       inactive: results.length - active,
     });
   }, []);
+
+  const loadAvailableNetworks = useCallback(async () => {
+    try {
+      const networks = await window.ipc.invoke('get-available-networks');
+      setAvailableNetworks(networks || []);
+    } catch (error) {
+      console.error('Error cargando redes disponibles:', error);
+    }
+  }, []);
+
+  const detectCurrentNetwork = useCallback(async () => {
+    setAutoDetecting(true);
+    try {
+      const networkInfo = await window.ipc.invoke('detect-current-network');
+      if (networkInfo) {
+        setConfig((prev) => ({
+          ...prev,
+          baseIp: networkInfo.baseIp,
+          startRange: networkInfo.startRange,
+          endRange: networkInfo.endRange,
+        }));
+        setError(null);
+        console.log(
+          `Red detectada automáticamente: ${networkInfo.baseIp}.x en ${networkInfo.interface}`,
+        );
+      } else {
+        setError('No se pudo detectar automáticamente la red. Configure manualmente.');
+      }
+    } catch (error) {
+      console.error('Error detectando red:', error);
+      setError('Error al detectar la red automáticamente');
+    } finally {
+      setAutoDetecting(false);
+    }
+  }, []);
+
+  // Cargar configuración inicial y detectar red al montar el componente
+  React.useEffect(() => {
+    const initializeConfig = async () => {
+      try {
+        // Cargar configuración guardada usando el método directo
+        const savedConfig = window.ipc.get('scanConfig');
+        if (savedConfig) {
+          setConfig((prevConfig) => ({ ...prevConfig, ...savedConfig }));
+        } else {
+          // Si no hay configuración guardada, detectar automáticamente
+          await detectCurrentNetwork();
+        }
+
+        // Cargar redes disponibles
+        await loadAvailableNetworks();
+      } catch (error) {
+        console.error('Error inicializando configuración:', error);
+      }
+    };
+
+    initializeConfig();
+  }, [detectCurrentNetwork, loadAvailableNetworks]);
 
   const handleScan = async () => {
     try {
@@ -257,6 +318,15 @@ const Home: React.FC = () => {
               />
             </Box>
           )}
+          <NetworkConfig
+            config={config}
+            setConfig={setConfig}
+            availableNetworks={availableNetworks}
+            onDetectNetwork={detectCurrentNetwork}
+            onRefreshNetworks={loadAvailableNetworks}
+            autoDetecting={autoDetecting}
+            scanning={scanning}
+          />
           <FilterMenu filters={filters} onFilterChange={handleFilterChange} />
           <StatsDashboard stats={stats} />
           {scanResults.length === 0 && !scanning && (
