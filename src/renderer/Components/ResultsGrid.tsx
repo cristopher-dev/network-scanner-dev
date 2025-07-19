@@ -15,6 +15,8 @@ import { ScanResult } from '../../shared/types';
 
 interface DeviceInfo extends ScanResult {
   os?: string;
+  mac?: string;
+  macAddress?: string;
 }
 
 interface ScanHistoryEntry {
@@ -63,6 +65,7 @@ export const DeviceDetailsModal = ({
               <Typography>Hostname: {device.hostname || 'N/A'}</Typography>
               <Typography>Nombre del Dispositivo: {device.deviceName || 'Desconocido'}</Typography>
               <Typography>Fabricante: {device.vendor || 'Desconocido'}</Typography>
+              <Typography>Dirección MAC: {device.mac || device.macAddress || 'N/A'}</Typography>
               <Typography>Sistema Operativo: {device.os || 'Desconocido'}</Typography>
               <Typography>Estado: {device.status}</Typography>
             </Box>
@@ -114,15 +117,21 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ scanResults }) => {
   const [modalOpen, setModalOpen] = useState(false);
 
   const columns: GridColDef[] = [
-    { field: 'ip', headerName: 'IP', flex: 1 },
+    { field: 'status', headerName: 'Estado', flex: 1 },
     {
       field: 'deviceName',
-      headerName: 'Dispositivo',
+      headerName: 'Nombre',
       flex: 1,
       renderCell: (params) => params.value || params.row.hostname || 'Desconocido',
     },
+    { field: 'ip', headerName: 'IP', flex: 1 },
     { field: 'vendor', headerName: 'Fabricante', flex: 1 },
-    { field: 'status', headerName: 'Estado', flex: 1 },
+    {
+      field: 'mac',
+      headerName: 'Dirección MAC',
+      flex: 1,
+      renderCell: (params) => params.value || params.row.macAddress || 'N/A',
+    },
   ];
 
   const handleDeviceClick = (device: DeviceInfo) => {
