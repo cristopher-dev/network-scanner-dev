@@ -1,20 +1,35 @@
+import NodeCache from 'node-cache';
+
 class ScanCacheManager {
-  private cache: Map<string, { data: any; timestamp: number; ttl: number }>;
+  private readonly cache: NodeCache;
 
   constructor() {
-    this.cache = new Map();
+    // Configurar cache con TTL por defecto de 5 minutos
+    this.cache = new NodeCache({
+      stdTTL: 300, // 5 minutos
+      checkperiod: 120, // Verificar cada 2 minutos por elementos expirados
+      useClones: false, // Mejor rendimiento
+    });
   }
 
   async getCachedScan(key: string): Promise<any> {
-    const cached = this.cache.get(key);
-    if (cached && Date.now() - cached.timestamp < cached.ttl) {
-      return cached.data;
-    }
-    return null;
+    return this.cache.get(key) || null;
   }
 
-  setCache(key: string, data: any, ttl: number): void {
-    this.cache.set(key, { data, timestamp: Date.now(), ttl });
+  setCache(key: string, data: any, ttl?: number): void {
+    if (ttl) {
+      this.cache.set(key, data, ttl / 1000); // node-cache usa segundos
+    } else {
+      this.cache.set(key, data);
+    }
+  }
+
+  clearCache(): void {
+    this.cache.flushAll();
+  }
+
+  getStats(): { keys: number; hits: number; misses: number } {
+    return this.cache.getStats();
   }
 }
 

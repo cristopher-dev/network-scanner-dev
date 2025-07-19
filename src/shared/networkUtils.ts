@@ -1,6 +1,7 @@
 /**
  * Utilidades para la configuración y validación de red
  */
+import * as ipaddr from 'ipaddr.js';
 
 export interface NetworkValidationResult {
   isValid: boolean;
@@ -26,9 +27,16 @@ export class NetworkUtils {
       warnings: [],
     };
 
-    // Validar IP base
-    if (!this.isValidBaseIp(config.baseIp)) {
-      result.errors.push('La IP base no es válida. Debe tener el formato XXX.XXX.XXX');
+    // Validar IP base usando ipaddr.js
+    try {
+      const ip = ipaddr.process(`${config.baseIp}.1`);
+      const range = ip.range();
+      if (range && !['private', 'loopback'].includes(range)) {
+        result.warnings.push('La IP especificada no parece ser una IP privada');
+      }
+    } catch (error) {
+      console.warn('Error validating IP:', error);
+      result.errors.push('La IP base no es válida');
       result.isValid = false;
     }
 
@@ -92,16 +100,16 @@ export class NetworkUtils {
   }
 
   /**
-   * Valida si una IP base tiene el formato correcto
+   * Valida si una IP base tiene el formato correcto usando ipaddr.js
    */
   static isValidBaseIp(baseIp: string): boolean {
-    const parts = baseIp.split('.');
-    if (parts.length !== 3) return false;
-
-    return parts.every((part) => {
-      const num = parseInt(part, 10);
-      return !isNaN(num) && num >= 0 && num <= 255;
-    });
+    try {
+      const testIp = `${baseIp}.1`;
+      ipaddr.process(testIp);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -132,7 +140,6 @@ export class NetworkUtils {
     batchSize: number;
   }): number {
     const totalIPs = config.endRange - config.startRange + 1;
-    const totalConnections = totalIPs * config.ports.length;
     const batches = Math.ceil(totalIPs / config.batchSize);
 
     // Estimación conservadora: timeout * puertos por IP * número de lotes

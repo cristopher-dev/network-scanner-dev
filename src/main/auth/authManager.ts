@@ -1,8 +1,8 @@
-import { hash, compare } from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 
 class AuthManager {
-  private readonly SALT_ROUNDS = 10;
+  private readonly SALT_ROUNDS = 12; // Aumentamos la seguridad
   private readonly ENCRYPTION_KEY: Buffer;
   private readonly ALGORITHM = 'aes-256-gcm';
 
@@ -15,11 +15,11 @@ class AuthManager {
   }
 
   async hashPassword(password: string): Promise<string> {
-    return await hash(password, this.SALT_ROUNDS);
+    return await bcrypt.hash(password, this.SALT_ROUNDS);
   }
 
   async validatePassword(password: string, hashedPassword: string): Promise<boolean> {
-    return await compare(password, hashedPassword);
+    return await bcrypt.compare(password, hashedPassword);
   }
 
   encrypt(data: string): string {
@@ -34,7 +34,7 @@ class AuthManager {
 
       return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
     } catch (error) {
-      throw new Error(`Encryption failed: ${error.message}`);
+      throw new Error(`Encryption failed: ${(error as Error).message}`);
     }
   }
 
@@ -57,7 +57,7 @@ class AuthManager {
 
       return decrypted;
     } catch (error) {
-      throw new Error(`Decryption failed: ${error.message}`);
+      throw new Error(`Decryption failed: ${(error as Error).message}`);
     }
   }
 }

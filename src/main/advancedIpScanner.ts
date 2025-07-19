@@ -3,6 +3,9 @@ import ping from 'ping';
 import dns from 'dns';
 import { promisify } from 'util';
 import { EventEmitter } from 'events';
+import pLimit from 'p-limit';
+import retry from 'async-retry';
+import NodeCache from 'node-cache';
 
 interface IScanResult {
   ip: string;
@@ -39,46 +42,42 @@ export class AdvancedIpScanner extends EventEmitter {
   private readonly lookup = promisify(dns.lookup);
   private isScanning = false;
   private scanTimeout = 2000; // timeout en ms
+  private readonly cache: NodeCache;
+  private readonly concurrencyLimit = pLimit(10); // Limitar concurrencia
+
   // Método público para establecer el timeout
   public setScanTimeout(timeout: number): void {
     this.scanTimeout = timeout;
   }
+
   // Agregar manejo de cancelación
   private abortController = new AbortController();
-  private readonly cache = new Map<
-    string,
-    {
-      results: IScanResult[];
-      timestamp: number;
-      ttl: number;
-      networkLoad: number;
-    }
-  >();
-  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutos
   private startTime: number = 0;
   private scannedIps: number = 0;
 
   constructor() {
     super();
+
+    // Inicializar cache con NodeCache
+    this.cache = new NodeCache({
+      stdTTL: 300, // 5 minutos
+      checkperiod: 120, // Verificar cada 2 minutos
+      useClones: false,
+    });
   }
 
   private getCacheKey(baseIp: string, startRange: number, endRange: number): string {
     return `${baseIp}-${startRange}-${endRange}`;
   }
 
-  private isCacheValid(timestamp: number): boolean {
-    return Date.now() - timestamp < this.CACHE_TTL;
+  private isCacheValid(): boolean {
+    // NodeCache maneja automáticamente la validez del cache
+    return true;
   }
 
-  private async shouldUseCachedResults(ip: string): Promise<boolean> {
-    const cached = this.cache.get(ip);
-    const networkLoad = await this.getCurrentNetworkLoad();
-    return (
-      (cached &&
-        Date.now() - cached.timestamp < 300000 && // 5 minutos
-        networkLoad > 0.8) ??
-      false
-    ); // Alto uso de red
+  private async shouldUseCachedResults(): Promise<boolean> {
+    // Simplificado: NodeCache maneja TTL automáticamente
+    return false;
   }
 
   async scanNetwork(
@@ -110,11 +109,11 @@ export class AdvancedIpScanner extends EventEmitter {
     }
 
     const cacheKey = this.getCacheKey(baseIp, startRange, endRange);
-    const cached = this.cache.get(cacheKey);
+    const cached = this.cache.get<IScanResult[]>(cacheKey);
 
-    if (cached && this.isCacheValid(cached.timestamp)) {
+    if (cached) {
       this.emit('cache-hit', cacheKey);
-      return cached.results;
+      return cached;
     }
 
     this.isScanning = true;
@@ -140,12 +139,7 @@ export class AdvancedIpScanner extends EventEmitter {
       this.isScanning = false;
     }
 
-    this.cache.set(cacheKey, {
-      results,
-      timestamp: Date.now(),
-      ttl: this.CACHE_TTL,
-      networkLoad: await this.getCurrentNetworkLoad(),
-    });
+    this.cache.set(cacheKey, results);
 
     return results;
   }
@@ -515,11 +509,8 @@ export class AdvancedIpScanner extends EventEmitter {
     });
   }
 
-  private async getCurrentNetworkLoad(): Promise<number> {
-    // Implementación básica: retorna un valor entre 0 y 1
-    // Esto debería reemplazarse con una implementación real que mida el uso de red
-    return Math.random();
-  }
+  // Método removido: getCurrentNetworkLoad ya no es necesario
+  // El cache ahora usa NodeCache que maneja TTL automáticamente
 }
 
 export default AdvancedIpScanner;
