@@ -142,12 +142,77 @@ export class ModernHostnameResolver {
   }
 
   /**
-   * Resolución mDNS/Bonjour (simulada - requiere librerías adicionales)
+   * Resolución mDNS/Bonjour - implementación mejorada
    */
   private static async resolveMDNS(
     ip: string,
   ): Promise<{ deviceName?: string; description?: string }> {
-    // Simulación básica, se recomienda implementar con mdns/bonjour
+    const methods = [
+      () => this.tryPingResolution(ip),
+      () => this.tryNslookupResolution(ip),
+      () => this.tryNetBiosResolution(ip),
+    ];
+
+    for (const method of methods) {
+      try {
+        const result = await method();
+        if (result.deviceName) {
+          return result;
+        }
+      } catch (error) {
+        log.debug(`Método de resolución falló para ${ip}:`, error);
+      }
+    }
+
+    return {};
+  }
+
+  private static async tryPingResolution(
+    ip: string,
+  ): Promise<{ deviceName?: string; description?: string }> {
+    const pingCommand =
+      process.platform === 'win32' ? `ping -n 1 -w 1000 ${ip}` : `ping -c 1 -W 1000 ${ip}`;
+    const { stdout } = await execAsync(pingCommand, { timeout: 3000 });
+
+    if (process.platform === 'win32') {
+      const match = /Pinging ([^\s[\]]+)/.exec(stdout);
+      if (match && match[1] !== ip && !match[1].startsWith('[')) {
+        log.debug(`Hostname encontrado con ping en Windows para ${ip}: ${match[1]}`);
+        return { deviceName: match[1], description: 'Windows Device' };
+      }
+    } else {
+      const match = /PING ([^\s]+)/.exec(stdout);
+      if (match && match[1] !== ip && match[1].includes('.local')) {
+        log.debug(`Hostname encontrado con ping en Unix para ${ip}: ${match[1]}`);
+        return { deviceName: match[1], description: 'mDNS Device' };
+      }
+    }
+    return {};
+  }
+
+  private static async tryNslookupResolution(
+    ip: string,
+  ): Promise<{ deviceName?: string; description?: string }> {
+    const { stdout } = await execAsync(`nslookup ${ip}`, { timeout: 3000 });
+    const nameMatch = /name = ([^\s]+)/.exec(stdout);
+    if (nameMatch && nameMatch[1] !== ip) {
+      log.debug(`Hostname encontrado con nslookup para ${ip}: ${nameMatch[1]}`);
+      return { deviceName: nameMatch[1], description: 'DNS Device' };
+    }
+    return {};
+  }
+
+  private static async tryNetBiosResolution(
+    ip: string,
+  ): Promise<{ deviceName?: string; description?: string }> {
+    if (process.platform !== 'win32') return {};
+
+    const { stdout } = await execAsync(`nbtstat -A ${ip}`, { timeout: 3000 });
+    const nameMatch = /([A-Za-z0-9\-_]+)\s+<00>\s+UNIQUE/.exec(stdout);
+    if (nameMatch) {
+      log.debug(`Hostname encontrado con nbtstat para ${ip}: ${nameMatch[1]}`);
+      return { deviceName: nameMatch[1], description: 'NetBIOS Device' };
+    }
     return {};
   }
 
@@ -175,7 +240,17 @@ export class ModernHostnameResolver {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const arp = require('node-arp');
       return new Promise<string | null>((resolve) => {
-        arp.getMAC(ip, (err: Error | null, mac?: string) => resolve(err || !mac ? null : mac));
+        arp.getMAC(ip, (err: Error | null, mac?: string) => {
+          if (err || !mac) {
+            log.debug(`node-arp no pudo obtener MAC para ${ip}:`, err);
+            resolve(null);
+          } else {
+            // Normalizar formato MAC
+            const normalizedMac = mac.toLowerCase().replace(/-/g, ':');
+            log.debug(`MAC obtenida para ${ip}: ${normalizedMac}`);
+            resolve(normalizedMac);
+          }
+        });
       });
     } catch (error) {
       log.warn('node-arp falló', { ip, error });
@@ -187,32 +262,49 @@ export class ModernHostnameResolver {
     ip: string,
   ): Promise<{ macAddress?: string; vendor?: string }> {
     try {
+      // Primero intentar hacer ping para asegurar que el dispositivo está en la tabla ARP
+      const pingCommand =
+        process.platform === 'win32' ? `ping -n 1 -w 1000 ${ip}` : `ping -c 1 -W 1000 ${ip}`;
+      try {
+        await execAsync(pingCommand, { timeout: 3000 });
+      } catch {
+        // Ignorar errores de ping, continuar con ARP
+      }
+
       let command = process.platform === 'win32' ? `arp -a ${ip}` : `arp -n ${ip}`;
-      const { stdout } = await execAsync(command, { timeout: 3000 });
+      const { stdout } = await execAsync(command, { timeout: 5000 });
+
+      log.debug(`Salida ARP para ${ip}:`, stdout);
+
       let match;
       if (process.platform === 'win32') {
-        match =
-          /([a-fA-F0-9]{2}-[a-fA-F0-9]{2}-[a-fA-F0-9]{2}-[a-fA-F0-9]{2}-[a-fA-F0-9]{2}-[a-fA-F0-9]{2})/.exec(
-            stdout,
-          );
+        // Buscar patrones de MAC en Windows (con guiones)
+        match = new RegExp(
+          `${ip.replace(/\./g, '\\.')}\\s+([a-fA-F0-9]{2}-[a-fA-F0-9]{2}-[a-fA-F0-9]{2}-[a-fA-F0-9]{2}-[a-fA-F0-9]{2}-[a-fA-F0-9]{2})`,
+        ).exec(stdout);
         if (match) {
-          const mac = match[1].replace(/-/g, ':');
+          const mac = match[1].replace(/-/g, ':').toLowerCase();
+          log.debug(`MAC encontrada en Windows para ${ip}: ${mac}`);
           const vendor = await this.getVendorFromMac(mac);
           return { macAddress: mac, vendor: vendor || undefined };
         }
       } else {
-        match =
-          /([a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2})/.exec(
-            stdout,
-          );
+        // Buscar patrones de MAC en Linux/macOS (con dos puntos)
+        match = new RegExp(
+          `${ip.replace(/\./g, '\\.')}\\s+[a-zA-Z]+\\s+([a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2})`,
+        ).exec(stdout);
         if (match) {
-          const mac = match[1];
+          const mac = match[1].toLowerCase();
+          log.debug(`MAC encontrada en Unix para ${ip}: ${mac}`);
           const vendor = await this.getVendorFromMac(mac);
           return { macAddress: mac, vendor: vendor || undefined };
         }
       }
+
+      log.debug(`No se encontró MAC para ${ip} en la tabla ARP`);
       return {};
-    } catch {
+    } catch (error) {
+      log.warn(`Error ejecutando ARP para ${ip}:`, error);
       return {};
     }
   }
@@ -220,22 +312,39 @@ export class ModernHostnameResolver {
   private static async getVendorFromMac(mac: string): Promise<string | null> {
     try {
       const oui = mac.substring(0, 8).replace(/:/g, '').toUpperCase().substring(0, 6);
+
+      // Intentar con mac-lookup primero
       try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const macLookup = require('mac-lookup');
         const vendor = await macLookup.lookup(mac);
-        if (vendor) return vendor;
-      } catch {}
+        if (vendor?.trim()) {
+          log.debug(`Fabricante encontrado con mac-lookup para ${mac}: ${vendor}`);
+          return vendor.trim();
+        }
+      } catch (error) {
+        log.debug(`mac-lookup falló para ${mac}:`, error);
+      }
+
+      // Fallback a oui-data
       try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const ouiData = require('oui-data');
         const ouiEntry = ouiData.find(
           (entry: { oui: string; organization: string }) => entry.oui === oui,
         );
-        if (ouiEntry) return ouiEntry.organization;
-      } catch {}
+        if (ouiEntry?.organization) {
+          log.debug(`Fabricante encontrado con oui-data para ${mac}: ${ouiEntry.organization}`);
+          return ouiEntry.organization;
+        }
+      } catch (error) {
+        log.debug(`oui-data falló para ${mac}:`, error);
+      }
+
+      log.debug(`No se encontró fabricante para MAC ${mac} (OUI: ${oui})`);
       return null;
-    } catch {
+    } catch (error) {
+      log.warn(`Error obteniendo fabricante para MAC ${mac}:`, error);
       return null;
     }
   }

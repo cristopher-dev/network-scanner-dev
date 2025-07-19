@@ -122,15 +122,34 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ scanResults }) => {
       field: 'deviceName',
       headerName: 'Nombre',
       flex: 1,
-      renderCell: (params) => params.value || params.row.hostname || 'Desconocido',
+      renderCell: (params) => {
+        const deviceName = params.value || params.row.hostname;
+        if (
+          deviceName &&
+          deviceName !== 'Desconocido' &&
+          !deviceName.startsWith('host-') &&
+          !deviceName.startsWith('Dispositivo ')
+        ) {
+          return deviceName;
+        }
+        return params.row.hostname || 'Desconocido';
+      },
     },
     { field: 'ip', headerName: 'IP', flex: 1 },
-    { field: 'vendor', headerName: 'Fabricante', flex: 1 },
+    {
+      field: 'vendor',
+      headerName: 'Fabricante',
+      flex: 1,
+      renderCell: (params) => params.value || 'Desconocido',
+    },
     {
       field: 'mac',
       headerName: 'Dirección MAC',
       flex: 1,
-      renderCell: (params) => params.value || params.row.macAddress || 'N/A',
+      renderCell: (params) => {
+        const mac = params.value || params.row.macAddress;
+        return mac || 'N/A';
+      },
     },
   ];
 

@@ -211,30 +211,73 @@ export class ModernNetworkScanner extends EventEmitter {
         config.enableOsDetection ? this.detectOS(ip) : Promise.resolve(undefined),
       ]);
 
-      if (deviceInfo.status === 'fulfilled') {
-        result.hostname = deviceInfo.value.hostname;
-        result.deviceName = deviceInfo.value.hostname;
-        result.vendor = deviceInfo.value.vendor;
-        (result as any).mac = deviceInfo.value.macAddress;
-        (result as any).macAddress = deviceInfo.value.macAddress;
-      }
-
-      if (openPorts.status === 'fulfilled') {
-        result.ports = openPorts.value;
-
-        if (config.enableServiceDetection && openPorts.value.length > 0) {
-          result.services = await this.detectServices(ip, openPorts.value);
-        }
-      }
-
-      if (osInfo.status === 'fulfilled' && osInfo.value) {
-        result.os = osInfo.value;
-      }
+      this.processDeviceInfo(result, deviceInfo, ip);
+      this.processPortInfo(result, openPorts, config, ip);
+      this.processOsInfo(result, osInfo);
 
       return result;
     } catch (error) {
       log.debug(`Error escaneando ${ip}:`, error);
       return null;
+    }
+  }
+
+  private processDeviceInfo(
+    result: ExtendedScanResult,
+    deviceInfo: PromiseSettledResult<any>,
+    ip: string,
+  ): void {
+    if (deviceInfo.status === 'fulfilled' && deviceInfo.value) {
+      const deviceData = deviceInfo.value;
+
+      // Asignar hostname con fallbacks
+      result.hostname = deviceData.hostname || `host-${ip.split('.').pop()}`;
+      result.deviceName =
+        deviceData.hostname || deviceData.description || `Dispositivo ${ip.split('.').pop()}`;
+
+      // Asignar vendor si está disponible
+      if (deviceData.vendor) {
+        result.vendor = deviceData.vendor;
+      }
+
+      // Asignar MAC address si está disponible
+      if (deviceData.macAddress) {
+        (result as any).mac = deviceData.macAddress;
+        (result as any).macAddress = deviceData.macAddress;
+      }
+
+      log.debug(`Información del dispositivo ${ip}:`, {
+        hostname: result.hostname,
+        vendor: result.vendor,
+        mac: (result as any).mac,
+        confidence: deviceData.confidence,
+      });
+    } else {
+      // Fallbacks cuando no se puede resolver el dispositivo
+      result.hostname = `host-${ip.split('.').pop()}`;
+      result.deviceName = `Dispositivo ${ip.split('.').pop()}`;
+      log.debug(`Usando fallbacks para ${ip}`);
+    }
+  }
+
+  private async processPortInfo(
+    result: ExtendedScanResult,
+    openPorts: PromiseSettledResult<any>,
+    config: ModernScanConfig,
+    ip: string,
+  ): Promise<void> {
+    if (openPorts.status === 'fulfilled') {
+      result.ports = openPorts.value;
+
+      if (config.enableServiceDetection && openPorts.value.length > 0) {
+        result.services = await this.detectServices(ip, openPorts.value);
+      }
+    }
+  }
+
+  private processOsInfo(result: ExtendedScanResult, osInfo: PromiseSettledResult<any>): void {
+    if (osInfo.status === 'fulfilled' && osInfo.value) {
+      result.os = osInfo.value;
     }
   }
 
