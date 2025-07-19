@@ -27,6 +27,7 @@ import StatsDashboard from './StatsDashboard';
 import ResultsGrid from './ResultsGrid';
 import ConfigDrawer from './ConfigDrawer';
 import FilterMenu from './FilterMenu';
+import SystemDiagnostics from './SystemDiagnostics';
 import './Home.css';
 
 interface ScanConfig {
@@ -52,6 +53,7 @@ const Home: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0 });
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState<ScanConfig>({
     timeout: 2000,
@@ -168,11 +170,18 @@ const Home: React.FC = () => {
           // Convertir el formato de puertos si es necesario
           const transformedResults = results.map((result) => ({
             ...result,
-            ports: result.ports?.map((p: any) => p.port), // Extraer solo los números de puerto
+            ports: Array.isArray(result.ports) ? result.ports : [],
           }));
           setScanResults(transformedResults);
           updateStats(transformedResults);
           setError(null);
+
+          // Mostrar información sobre el tipo de scanner usado
+          if (transformedResults.length > 0 && !transformedResults[0].services) {
+            setError(
+              'Escaneo completado con scanner básico (nmap no disponible). Para funcionalidades avanzadas, instale nmap.',
+            );
+          }
 
           // Guardar resultados en el almacenamiento local
           await window.store.saveNetworkData({
@@ -190,7 +199,16 @@ const Home: React.FC = () => {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-      setError(`Error al escanear la red: ${errorMessage}`);
+
+      // Verificar si el error está relacionado con nmap
+      if (errorMessage.includes('nmap') || errorMessage.includes('ENOENT')) {
+        setError(
+          `Error: nmap no está instalado. La aplicación usará el scanner básico. ${errorMessage}`,
+        );
+      } else {
+        setError(`Error al escanear la red: ${errorMessage}`);
+      }
+
       console.error('Error durante el escaneo:', error);
     } finally {
       setScanning(false);
@@ -320,7 +338,11 @@ const Home: React.FC = () => {
             tooltipTitle="Configuración"
             onClick={() => setDrawerOpen(true)}
           />
-          <SpeedDialAction icon={<SecurityIcon />} tooltipTitle="Seguridad" onClick={() => {}} />
+          <SpeedDialAction
+            icon={<SecurityIcon />}
+            tooltipTitle="Diagnósticos del Sistema"
+            onClick={() => setDiagnosticsOpen(true)}
+          />
         </SpeedDial>
         <ConfigDrawer
           drawerOpen={drawerOpen}
@@ -328,6 +350,7 @@ const Home: React.FC = () => {
           config={config}
           setConfig={setConfig}
         />
+        <SystemDiagnostics open={diagnosticsOpen} onClose={() => setDiagnosticsOpen(false)} />
         <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError(null)}>
           <Alert severity="error" onClose={() => setError(null)}>
             {error}

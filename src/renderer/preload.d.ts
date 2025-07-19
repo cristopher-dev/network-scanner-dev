@@ -4,10 +4,22 @@ declare global {
     // Definimos las funcionalidades de IPC (Inter-Process Communication)
     ipc: {
       // Método para invocar operaciones asíncronas
-      invoke(channel: string, ...args: unknown[]): Promise<any>;
+      invoke(
+        channel:
+          | 'scan-network'
+          | 'store-save'
+          | 'store-load'
+          | 'run-diagnostics'
+          | 'get-nmap-instructions'
+          | string,
+        ...args: unknown[]
+      ): Promise<any>;
 
       // Método para escuchar eventos con cleanup automático
-      on(channel: string, callback: (...args: any[]) => void): (() => void) | undefined;
+      on(
+        channel: 'scan-progress' | string,
+        callback: (...args: any[]) => void,
+      ): (() => void) | undefined;
 
       // Métodos legacy (mantenidos por compatibilidad)
       send(channel: string, data: unknown): void;
