@@ -45,6 +45,7 @@ export class HostnameResolver {
       if (macInfo) {
         device.macAddress = macInfo.mac;
         device.vendor = macInfo.vendor;
+        log.info('MAC info obtenida', { ip, mac: macInfo.mac, vendor: macInfo.vendor });
       }
 
       // Método 4: mDNS/Bonjour (para dispositivos Apple y otros)
@@ -110,6 +111,50 @@ export class HostnameResolver {
     ip: string,
   ): Promise<{ mac: string; vendor?: string } | null> {
     try {
+      // Método 1: Usar node-arp (más confiable)
+      const mac = await this.getMacFromNodeArp(ip);
+      if (mac) {
+        const vendor = await this.getVendorFromMac(mac);
+        return { mac, vendor: vendor || undefined };
+      }
+
+      // Método 2: Fallback al comando arp nativo
+      return await this.getMacAddressFromARPFallback(ip);
+    } catch (error) {
+      log.warn('Error obteniendo MAC desde ARP', { ip, error });
+      return null;
+    }
+  }
+
+  /**
+   * Obtiene MAC usando node-arp
+   */
+  private static async getMacFromNodeArp(ip: string): Promise<string | null> {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const arp = require('node-arp');
+      return new Promise<string | null>((resolve) => {
+        arp.getMAC(ip, (err: Error | null, mac?: string) => {
+          if (err || !mac) {
+            resolve(null);
+          } else {
+            resolve(mac);
+          }
+        });
+      });
+    } catch (error) {
+      log.warn('node-arp falló', { ip, error });
+      return null;
+    }
+  }
+
+  /**
+   * Método fallback para obtener MAC usando comando nativo
+   */
+  private static async getMacAddressFromARPFallback(
+    ip: string,
+  ): Promise<{ mac: string; vendor?: string } | null> {
+    try {
       let command: string;
       if (process.platform === 'win32') {
         command = `arp -a ${ip}`;
@@ -172,90 +217,42 @@ export class HostnameResolver {
    */
   private static async getVendorFromMac(mac: string): Promise<string | null> {
     try {
-      // Obtener los primeros 3 octetos (OUI)
-      const oui = mac.substring(0, 8).replace(/:/g, '').toUpperCase();
+      const oui = mac.substring(0, 8).replace(/:/g, '').toUpperCase().substring(0, 6);
+      log.info('Buscando fabricante', { mac, oui });
 
-      // Base de datos simple de algunos fabricantes comunes
-      const vendors: Record<string, string> = {
-        '00E04C': 'Realtek',
-        '8C8590': 'Apple',
-        AC87A3: 'Apple',
-        F0766F: 'Apple',
-        '20C9D0': 'Apple',
-        E8E0B7: 'Apple',
-        E4B318: 'Apple',
-        '3035AD': 'Apple',
-        '002655': 'Apple',
-        '001F5B': 'Apple',
-        '001EC2': 'Apple',
-        '001451': 'Apple',
-        '000D93': 'Apple',
-        '001124': 'Apple',
-        '0017F2': 'Apple',
-        '001B63': 'Apple',
-        '002436': 'Apple',
-        '002332': 'Apple',
-        '00254B': 'Apple',
-        '7CD1C3': 'Apple',
-        A4B197: 'Apple',
-        B8E856: 'Apple',
-        C82A14: 'Apple',
-        DC2B61: 'Apple',
-        E0F847: 'Apple',
-        F0DBE2: 'Apple',
-        F8D027: 'Apple',
-        '5CF5DA': 'Apple',
-        '84F3EB': 'Apple',
-        F81EDF: 'Apple',
-        '7831C1': 'Apple',
-        '3C2EFF': 'Apple',
-        '2CF0EE': 'Apple',
-        A4C361: 'Apple',
-        B065BD: 'Apple',
-        D03311: 'Apple',
-        '44D884': 'Apple',
-        '68A86D': 'Apple',
-        '70CD60': 'Apple',
-        '28CFE9': 'Apple',
-        '40CBC0': 'Apple',
-        '64B0A6': 'Apple',
-        '6C96CF': 'Apple',
-        '787B8A': 'Apple',
-        '9027E4': 'Apple',
-        A88808: 'Apple',
-        BC9FEF: 'Apple',
-        E42B34: 'Apple',
-        F099BF: 'Apple',
-        '38892C': 'Apple',
-        '40B395': 'Apple',
-        '18E7F4': 'TP-Link',
-        '1C61B4': 'TP-Link',
-        '509A4C': 'TP-Link',
-        '6C5AB0': 'TP-Link',
-        AC84C6: 'TP-Link',
-        E8DE27: 'TP-Link',
-        F4F26D: 'TP-Link',
-        '18E829': 'Samsung',
-        '002454': 'Samsung',
-        E8E8B7: 'Samsung',
-        '5C0A5B': 'Samsung',
-        '2C44FD': 'Samsung',
-        '40B0FA': 'Samsung',
-        '88329B': 'Samsung',
-        C85195: 'Samsung',
-        DCF7C4: 'Samsung',
-        E8039A: 'Samsung',
-        F0257D: 'Samsung',
-        '001D25': 'Cisco',
-        '0050E4': 'Cisco',
-        '0018BA': 'Cisco',
-        '001E4A': 'Cisco',
-        '002155': 'Microsoft',
-        '7CFD9B': 'Microsoft',
-      };
+      // Método 1: Usar mac-lookup (requiere conexión a internet)
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const macLookup = require('mac-lookup');
+        const vendor = await macLookup.lookup(mac);
+        if (vendor) {
+          log.info('Vendor encontrado con mac-lookup', { mac, vendor });
+          return vendor;
+        }
+      } catch (error) {
+        log.warn('mac-lookup falló, usando base local', { error });
+      }
 
-      return vendors[oui] || null;
-    } catch {
+      // Método 2: Usar oui-data (base de datos local completa)
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const ouiData = require('oui-data');
+        const ouiEntry = ouiData.find(
+          (entry: { oui: string; organization: string }) => entry.oui === oui,
+        );
+        if (ouiEntry) {
+          log.info('Vendor encontrado con oui-data', { mac, vendor: ouiEntry.organization });
+          return ouiEntry.organization;
+        }
+      } catch (error) {
+        log.warn('oui-data falló', { error });
+      }
+
+      // Método 3: Si no se encuentra en las librerías, devolver null
+      log.info('Vendor no encontrado en las bases de datos', { oui });
+      return null;
+    } catch (error) {
+      log.warn('Error obteniendo fabricante', { mac, error });
       return null;
     }
   }
@@ -272,23 +269,38 @@ export class HostnameResolver {
 
       // Basado en el fabricante
       if (device.vendor) {
-        switch (device.vendor.toLowerCase()) {
-          case 'apple':
-            return 'Dispositivo Apple';
-          case 'samsung':
-            return 'Dispositivo Samsung';
-          case 'tp-link':
-          case 'cisco':
-            return 'Dispositivo de Red';
-          case 'microsoft':
-            return 'Dispositivo Microsoft';
-        }
+        return this.getDeviceTypeByVendor(device.vendor);
       }
 
       return 'Dispositivo de Red';
     } catch {
       return 'Dispositivo Desconocido';
     }
+  }
+
+  /**
+   * Determina el tipo de dispositivo basado en el fabricante
+   */
+  private static getDeviceTypeByVendor(vendor: string): string {
+    const vendorLower = vendor.toLowerCase();
+
+    if (vendorLower.includes('apple')) return 'Dispositivo Apple';
+    if (vendorLower.includes('samsung')) return 'Dispositivo Samsung';
+    if (vendorLower.includes('microsoft')) return 'Dispositivo Microsoft';
+    if (vendorLower.includes('google')) return 'Dispositivo Google';
+    if (vendorLower.includes('amazon')) return 'Dispositivo Amazon';
+    if (vendorLower.includes('huawei') || vendorLower.includes('xiaomi'))
+      return 'Dispositivo Móvil';
+    if (vendorLower.includes('locally administered') || vendorLower.includes('private'))
+      return 'Dispositivo Virtual';
+
+    // Dispositivos de red
+    const networkVendors = ['tp-link', 'cisco', 'realtek', 'intel', 'belkin', 'netgear'];
+    if (networkVendors.some((nv) => vendorLower.includes(nv))) {
+      return 'Dispositivo de Red';
+    }
+
+    return `Dispositivo ${vendor}`;
   }
 
   /**
